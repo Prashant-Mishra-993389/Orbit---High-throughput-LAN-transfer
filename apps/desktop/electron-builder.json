@@ -1,0 +1,66 @@
+{
+  "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
+  "appId": "com.sharelan.desktop",
+  "productName": "ShareLAN",
+  "copyright": "Copyright © 2026 ShareLAN Team",
+  "electronVersion": "33.4.11",
+  "npmRebuild": false,
+  "nodeGypRebuild": false,
+  "directories": {
+    "app": ".",
+    "output": "../../release"
+  },
+  "files": [
+    "dist/**/*",
+    "package.json",
+    "node_modules/**/*"
+  ],
+  "extraResources": [
+    {
+      "from": "../web/out",
+      "to": "web/out",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "../server/dist",
+      "to": "server/dist",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "../../packages/protocol/dist",
+      "to": "protocol/dist",
+      "filter": ["**/*"]
+    },
+    {
+      "from": "../../packages/shared/dist",
+      "to": "shared/dist",
+      "filter": ["**/*"]
+    }
+  ],
+  "win": {
+    "signAndEditExecutable": false,
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ]
+  },
+  "nsis": {
+    "oneClick": false,
+    "perMachine": false,
+    "allowToChangeInstallationDirectory": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "ShareLAN",
+    "artifactName": "ShareLAN-Setup-${version}.${ext}",
+    "uninstallDisplayName": "ShareLAN"
+  },
+  "portable": {
+    "artifactName": "ShareLAN-Portable-${version}.${ext}"
+  }
+}

@@ -1,0 +1,32 @@
+services:
+  relay:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile.relay
+    container_name: sharelan-relay
+    restart: always
+    environment:
+      - RELAY_PORT=37825
+      - MAX_RELAY_SESSIONS=200
+      - NODE_ENV=production
+    ports:
+      - "37825:37825"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:37825/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Optional reverse proxy with automatic SSL for relay.yourdomain.com
+  caddy:
+    image: caddy:alpine
+    container_name: sharelan-caddy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - RELAY_DOMAIN=${RELAY_DOMAIN:-localhost}
+    command: caddy reverse-proxy --from ${RELAY_DOMAIN:-localhost} --to relay:37825
+    depends_on:
+      - relay

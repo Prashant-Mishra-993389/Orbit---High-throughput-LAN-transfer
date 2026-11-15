@@ -1,0 +1,35 @@
+{
+  "name": "sharelan-root",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "ShareLAN — High-Performance Local Network File Transfer System",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev --workspace=@sharelan/server",
+    "dev:web": "npm run dev --workspace=@sharelan/web",
+    "dev:desktop": "npm run dev --workspace=@sharelan/desktop",
+    "dev": "npm run dev --workspace=@sharelan/server",
+    "build": "npm run build --workspaces --if-present",
+    "package:win": "npm run package:win --workspace=@sharelan/desktop",
+    "package:portable": "npm run package:portable --workspace=@sharelan/desktop",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test:generate-file": "node scripts/generate-test-file.js"
+  },
+  "keywords": [
+    "lan",
+    "file-transfer",
+    "high-performance",
+    "airdrop",
+    "streaming"
+  ],
+  "author": "ShareLAN Team",
+  "license": "MIT",
+  "devDependencies": {
+    "app-builder-bin": "^5.0.0-alpha.10"
+  }
+}

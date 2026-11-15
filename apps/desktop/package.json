@@ -1,0 +1,26 @@
+{
+  "name": "@sharelan/desktop",
+  "version": "1.0.0",
+  "description": "ShareLAN Desktop Application for Windows, macOS, and Linux",
+  "author": "ShareLAN Team",
+  "main": "dist/main/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && tsc -p tsconfig.preload.json",
+    "dev": "tsc && tsc -p tsconfig.preload.json && electron .",
+    "package:win": "npm run build && electron-builder --win --x64",
+    "package:portable": "npm run build && electron-builder --win portable --x64",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.preload.json --noEmit"
+  },
+  "dependencies": {
+    "@sharelan/protocol": "*",
+    "@sharelan/server": "*",
+    "@sharelan/shared": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "electron": "33.4.11",
+    "electron-builder": "^25.1.8",
+    "typescript": "^5.7.2"
+  }
+}
