@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useShareLanWebSocket } from '../hooks/useShareLanWebSocket';
 import { Navbar } from '../components/Navbar';
 import { SpatialRadar } from '../components/SpatialRadar';
+import { DynamicIsland } from '../components/DynamicIsland';
 import { TransferCard, ActiveTransferState } from '../components/TransferCard';
 import { IncomingTransferModal } from '../components/IncomingTransferModal';
 import { NetworkDiagnosticsModal } from '../components/NetworkDiagnosticsModal';
@@ -72,6 +73,7 @@ export default function Home() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [showNetworkQr, setShowNetworkQr] = useState(false);
   const [isRadarDragOver, setIsRadarDragOver] = useState(false);
+  const [designMode, setDesignMode] = useState<'island' | 'radar'>('island');
 
   // Drop-First instant staged share: when sender drops a file, an offer is pre-created immediately
   const [stagedShare, setStagedShare] = useState<{
@@ -598,147 +600,202 @@ export default function Home() {
           />
         ) : (
           /* ============================================================ */
-          /* VIEW 4: DIRECTION 1 - APPLE AIRDROP SPATIAL RADAR            */
+          /* VIEW 4: HERO CANVAS (DIRECTION 2 CAPSULE / DIRECTION 1 RADAR) */
           /* ============================================================ */
-          <div className="flex flex-col items-center space-y-4 animate-fade-in">
-            {/* Top Minimal Ambient Status Pill */}
-            {pairedDevice ? (
-              <div className="flex items-center justify-center animate-fade-in">
-                <div className="inline-flex items-center space-x-2.5 px-4 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 backdrop-blur-xl text-xs font-semibold text-emerald-300 shadow-lg shadow-emerald-500/10">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                  <span>
-                    Connected to <strong className="text-white">{pairedDevice.deviceName}</strong>
-                  </span>
-                  <button
-                    onClick={() => setPairedDevice(null)}
-                    className="ml-1.5 p-1 rounded-full hover:bg-white/10 text-slate-400 hover:text-rose-300 transition-colors"
-                    title="Disconnect"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-center animate-fade-in">
-                <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-surface-100/70 border border-white/5 backdrop-blur-md text-[11px] font-medium text-slate-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                  <span>AirDrop Radar Active</span>
-                  <span className="text-slate-600">•</span>
-                  <span className="font-mono text-cyan-300/80">
-                    {activeSharingUrl ? activeSharingUrl.replace(/^https?:\/\//, '') : 'Ready'}
-                  </span>
-                </div>
-              </div>
-            )}
-
-            {/* THE SPATIAL RADAR HERO */}
-            <SpatialRadar
-              clientName={session.clientName}
-              pairedDevice={pairedDevice}
-              nearbyDevices={devices}
-              onFileSelected={handleDropFirstFile}
-              onSelectDevice={(device) => {
-                setPairedDevice(device);
-              }}
-              onDropOnDevice={(device, file) => {
-                setPairedDevice(device);
-                handleDropFirstFile(file);
-              }}
-              onOpenQr={() => setShowNetworkQr(true)}
-              isDragOver={isRadarDragOver}
-              onDragOver={handleRadarDragOver}
-              onDragLeave={handleRadarDragLeave}
-              onDrop={handleRadarDrop}
-            />
-
-            {/* FLOATING GLASS DOCK (CONTROL PILL) */}
-            <div className="w-full flex flex-col items-center space-y-4">
-              <div className="inline-flex items-center p-1.5 rounded-2xl bg-surface-100/90 border border-white/10 backdrop-blur-2xl shadow-2xl space-x-1 sm:space-x-1.5">
-                {/* QR Code Connect Pill */}
+          <div className="space-y-4 animate-fade-in">
+            {/* Visual Design Mode Switcher */}
+            <div className="flex items-center justify-center pt-1">
+              <div className="inline-flex items-center p-1 rounded-2xl bg-surface-100/90 border border-white/10 backdrop-blur-xl shadow-lg space-x-1">
                 <button
                   type="button"
-                  onClick={() => setShowNetworkQr(!showNetworkQr)}
-                  className={`flex items-center space-x-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
-                    showNetworkQr
-                      ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-cyan-500/25 ring-2 ring-cyan-400/40'
-                      : 'text-slate-300 hover:text-white hover:bg-white/5'
+                  onClick={() => setDesignMode('island')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    designMode === 'island'
+                      ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-cyan-500/20'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
                   }`}
                 >
-                  <QrCode className="w-4 h-4 text-cyan-400" />
-                  <span>QR Connect</span>
+                  ⚡ Dynamic Island (Direction 2)
                 </button>
-
-                {/* Copy Link Pill */}
                 <button
                   type="button"
-                  onClick={handleCopyShareLink}
-                  className="flex items-center space-x-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all"
+                  onClick={() => setDesignMode('radar')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all ${
+                    designMode === 'radar'
+                      ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-cyan-500/20'
+                      : 'text-slate-400 hover:text-white hover:bg-white/5'
+                  }`}
                 >
-                  {copiedLink ? (
-                    <>
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      <span className="text-emerald-300">Copied!</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-4 h-4 text-slate-400" />
-                      <span>Copy URL</span>
-                    </>
-                  )}
-                </button>
-
-                {/* 6-Digit Code Pill */}
-                <button
-                  type="button"
-                  onClick={() => handleOpenPairing('join')}
-                  className="flex items-center space-x-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all"
-                >
-                  <KeyRound className="w-4 h-4 text-amber-400" />
-                  <span>6-Digit Code</span>
-                </button>
-
-                <div className="w-[1px] h-5 bg-white/10 mx-0.5" />
-
-                {/* Benchmark / Diagnostics Pill */}
-                <button
-                  type="button"
-                  onClick={() => setIsDiagnosticsOpen(true)}
-                  className="p-2 rounded-xl text-slate-400 hover:text-cyan-400 hover:bg-white/5 transition-all"
-                  title="Network Diagnostics & Speed Test"
-                >
-                  <Zap className="w-4 h-4" />
+                  📡 Spatial Radar (Direction 1)
                 </button>
               </div>
+            </div>
 
-              {/* Collapsible Instant Auto-Connect QR Card */}
-              {showNetworkQr && (
-                <div className="w-full max-w-sm p-4 rounded-3xl bg-surface-100/95 border border-cyan-500/30 backdrop-blur-2xl shadow-2xl animate-fade-in relative space-y-3">
-                  <div className="flex items-center justify-between pb-1 border-b border-white/5">
-                    <div className="flex items-center space-x-2">
-                      <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
-                      <span className="text-xs font-bold text-white uppercase tracking-wider">
-                        Scan to Pair Instantly
+            {designMode === 'island' ? (
+              <DynamicIsland
+                clientName={session.clientName}
+                activeSharingUrl={activeSharingUrl}
+                directPairingUrl={directPairingUrl}
+                pairedDevice={pairedDevice}
+                nearbyDevices={devices}
+                onSelectDevice={(device) => {
+                  setPairedDevice(device);
+                }}
+                onFileSelected={handleDropFirstFile}
+                onOpenQr={() => setShowNetworkQr(true)}
+                showQr={showNetworkQr}
+                onToggleQr={() => setShowNetworkQr(!showNetworkQr)}
+                onCopyUrl={handleCopyShareLink}
+                copiedLink={copiedLink}
+                onOpenPairing={handleOpenPairing}
+                onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+                isDragOver={isRadarDragOver}
+                onDragOver={handleRadarDragOver}
+                onDragLeave={handleRadarDragLeave}
+                onDrop={handleRadarDrop}
+              />
+            ) : (
+              <div className="flex flex-col items-center space-y-4 animate-fade-in">
+                {/* Top Minimal Ambient Status Pill */}
+                {pairedDevice ? (
+                  <div className="flex items-center justify-center animate-fade-in">
+                    <div className="inline-flex items-center space-x-2.5 px-4 py-1.5 rounded-full bg-emerald-500/15 border border-emerald-500/30 backdrop-blur-xl text-xs font-semibold text-emerald-300 shadow-lg shadow-emerald-500/10">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                      <span>
+                        Connected to <strong className="text-white">{pairedDevice.deviceName}</strong>
+                      </span>
+                      <button
+                        onClick={() => setPairedDevice(null)}
+                        className="ml-1.5 p-1 rounded-full hover:bg-white/10 text-slate-400 hover:text-rose-300 transition-colors"
+                        title="Disconnect"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center animate-fade-in">
+                    <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-surface-100/70 border border-white/5 backdrop-blur-md text-[11px] font-medium text-slate-400">
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                      <span>AirDrop Radar Active</span>
+                      <span className="text-slate-600">•</span>
+                      <span className="font-mono text-cyan-300/80">
+                        {activeSharingUrl ? activeSharingUrl.replace(/^https?:\/\//, '') : 'Ready'}
                       </span>
                     </div>
+                  </div>
+                )}
+
+                {/* THE SPATIAL RADAR HERO */}
+                <SpatialRadar
+                  clientName={session.clientName}
+                  pairedDevice={pairedDevice}
+                  nearbyDevices={devices}
+                  onFileSelected={handleDropFirstFile}
+                  onSelectDevice={(device) => {
+                    setPairedDevice(device);
+                  }}
+                  onDropOnDevice={(device, file) => {
+                    setPairedDevice(device);
+                    handleDropFirstFile(file);
+                  }}
+                  onOpenQr={() => setShowNetworkQr(true)}
+                  isDragOver={isRadarDragOver}
+                  onDragOver={handleRadarDragOver}
+                  onDragLeave={handleRadarDragLeave}
+                  onDrop={handleRadarDrop}
+                />
+
+                {/* FLOATING GLASS DOCK (CONTROL PILL) */}
+                <div className="w-full flex flex-col items-center space-y-4">
+                  <div className="inline-flex items-center p-1.5 rounded-2xl bg-surface-100/90 border border-white/10 backdrop-blur-2xl shadow-2xl space-x-1 sm:space-x-1.5">
+                    {/* QR Code Connect Pill */}
                     <button
                       type="button"
-                      onClick={() => setShowNetworkQr(false)}
-                      className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                      onClick={() => setShowNetworkQr(!showNetworkQr)}
+                      className={`flex items-center space-x-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold transition-all ${
+                        showNetworkQr
+                          ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-md shadow-cyan-500/25 ring-2 ring-cyan-400/40'
+                          : 'text-slate-300 hover:text-white hover:bg-white/5'
+                      }`}
                     >
-                      <X className="w-4 h-4" />
+                      <QrCode className="w-4 h-4 text-cyan-400" />
+                      <span>QR Connect</span>
+                    </button>
+
+                    {/* Copy Link Pill */}
+                    <button
+                      type="button"
+                      onClick={handleCopyShareLink}
+                      className="flex items-center space-x-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all"
+                    >
+                      {copiedLink ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-400" />
+                          <span className="text-emerald-300">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4 text-slate-400" />
+                          <span>Copy URL</span>
+                        </>
+                      )}
+                    </button>
+
+                    {/* 6-Digit Code Pill */}
+                    <button
+                      type="button"
+                      onClick={() => handleOpenPairing('join')}
+                      className="flex items-center space-x-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs font-semibold text-slate-300 hover:text-white hover:bg-white/5 transition-all"
+                    >
+                      <KeyRound className="w-4 h-4 text-amber-400" />
+                      <span>6-Digit Code</span>
+                    </button>
+
+                    <div className="w-[1px] h-5 bg-white/10 mx-0.5" />
+
+                    {/* Benchmark / Diagnostics Pill */}
+                    <button
+                      type="button"
+                      onClick={() => setIsDiagnosticsOpen(true)}
+                      className="p-2 rounded-xl text-slate-400 hover:text-cyan-400 hover:bg-white/5 transition-all"
+                      title="Network Diagnostics & Speed Test"
+                    >
+                      <Zap className="w-4 h-4" />
                     </button>
                   </div>
 
-                  <QrCodeCard
-                    url={directPairingUrl || activeSharingUrl}
-                    title=""
-                    subtitle="Point your phone camera to pair both devices in 1 second with zero typing"
-                    size={190}
-                    showCopy={true}
-                  />
+                  {/* Collapsible Instant Auto-Connect QR Card */}
+                  {showNetworkQr && (
+                    <div className="w-full max-w-sm p-4 rounded-3xl bg-surface-100/95 border border-cyan-500/30 backdrop-blur-2xl shadow-2xl animate-fade-in relative space-y-3">
+                      <div className="flex items-center justify-between pb-1 border-b border-white/5">
+                        <div className="flex items-center space-x-2">
+                          <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse" />
+                          <span className="text-xs font-bold text-white uppercase tracking-wider">
+                            Scan to Pair Instantly
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowNetworkQr(false)}
+                          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <QrCodeCard
+                        url={directPairingUrl || activeSharingUrl}
+                        title=""
+                        subtitle="Point your phone camera to pair both devices in 1 second with zero typing"
+                        size={190}
+                        showCopy={true}
+                      />
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </main>
