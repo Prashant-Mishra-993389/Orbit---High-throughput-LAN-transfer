@@ -60,15 +60,15 @@ export function ReceiverView({
   };
 
   return (
-    <div className="w-full max-w-md mx-auto p-6 sm:p-8 rounded-3xl bg-gradient-to-b from-surface-100 via-surface-50 to-surface-100 border border-cyan-500/30 shadow-2xl space-y-6 text-center animate-fade-in relative overflow-hidden">
+    <div className="w-full max-w-md mx-auto p-6 sm:p-8 rounded-3xl bg-obsidian-card/95 border border-white/[0.08] shadow-2xl space-y-6 text-center animate-fade-in relative overflow-hidden backdrop-blur-2xl">
       {/* Background radial glow */}
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-16 w-64 h-64 bg-cyan-500/15 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 -mt-16 w-64 h-64 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* File Icon Hero */}
-      <div className="relative mx-auto w-24 h-24 rounded-3xl bg-surface-200 border border-white/10 flex items-center justify-center shadow-xl shadow-cyan-500/10 group">
+      <div className="relative mx-auto w-24 h-24 rounded-3xl bg-obsidian-base border border-white/[0.08] flex items-center justify-center shadow-xl shadow-cyan-500/5 group">
         <FileIcon fileName={offer.fileName} mimeType={offer.mimeType} className="w-12 h-12" />
-        <span className="absolute -bottom-2 -right-2 p-1.5 rounded-xl bg-emerald-500 text-white shadow-md">
-          <DownloadCloud className="w-4 h-4" />
+        <span className="absolute -bottom-2 -right-2 p-1.5 rounded-xl bg-emerald-500 text-slate-950 shadow-md">
+          <DownloadCloud className="w-4 h-4 font-bold" />
         </span>
       </div>
 
@@ -78,19 +78,19 @@ export function ReceiverView({
           <Laptop className="w-3.5 h-3.5" />
           <span>{offer.senderDeviceName || 'Nearby Device'} wants to share:</span>
         </div>
-        <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight truncate px-2" title={offer.fileName}>
+        <h2 className="text-xl sm:text-2xl font-bold text-warm-bone tracking-tight truncate px-2" title={offer.fileName}>
           {offer.fileName}
         </h2>
         <div className="flex items-center justify-center space-x-2 pt-1">
-          <span className="px-3 py-1 rounded-full bg-surface-200 border border-white/10 text-xs font-mono font-medium text-slate-200">
+          <span className="px-3 py-1 rounded-full bg-obsidian-base border border-white/[0.06] text-xs font-mono font-medium text-warm-bone">
             {formatBytes(offer.fileSize)}
           </span>
           {offer.transportMode === 'RELAY_STREAM' ? (
-            <span className="px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/30 text-xs font-semibold text-violet-300">
+            <span className="px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/25 text-xs font-semibold text-violet-300">
               🌐 Relay Stream
             </span>
           ) : (
-            <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-xs font-semibold text-emerald-300 flex items-center space-x-1">
+            <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-xs font-semibold text-emerald-300 flex items-center space-x-1">
               <Zap className="w-3 h-3 text-emerald-400" />
               <span>Direct Wi-Fi</span>
             </span>
@@ -99,12 +99,12 @@ export function ReceiverView({
       </div>
 
       {/* Info card */}
-      <div className="p-3.5 rounded-2xl bg-surface-200/60 border border-white/5 text-left text-xs space-y-1">
-        <div className="flex items-center space-x-1.5 text-slate-300 font-medium">
+      <div className="p-3.5 rounded-2xl bg-obsidian-base/80 border border-white/[0.06] text-left text-xs space-y-1">
+        <div className="flex items-center space-x-1.5 text-warm-bone font-medium">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
           <span>Direct-to-Disk Streaming</span>
         </div>
-        <p className="text-[11px] text-slate-400 leading-relaxed">
+        <p className="text-[11px] text-warm-sand leading-relaxed">
           The file streams directly to your device storage in real time. Zero browser memory limits.
         </p>
       </div>

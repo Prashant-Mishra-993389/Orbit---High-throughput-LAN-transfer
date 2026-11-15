@@ -3,7 +3,7 @@
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useShareLanWebSocket } from '../hooks/useShareLanWebSocket';
 import { Navbar } from '../components/Navbar';
-import { Dropzone } from '../components/Dropzone';
+import { FluidCanvas } from '../components/FluidCanvas';
 import { TransferCard, ActiveTransferState } from '../components/TransferCard';
 import { IncomingTransferModal } from '../components/IncomingTransferModal';
 import { NetworkDiagnosticsModal } from '../components/NetworkDiagnosticsModal';
@@ -71,17 +71,13 @@ export default function Home() {
   const [pairingTab, setPairingTab] = useState<'create' | 'join'>('join');
   const [copiedLink, setCopiedLink] = useState(false);
   const [showNetworkQr, setShowNetworkQr] = useState(false);
+  const [isDropOver, setIsDropOver] = useState(false);
 
   // Drop-First instant staged share: when sender drops a file, an offer is pre-created immediately
   const [stagedShare, setStagedShare] = useState<{
     file: File;
     offer: TransferOffer;
   } | null>(null);
-
-  // Quick code input on main page
-  const [quickCode, setQuickCode] = useState('');
-  const [quickCodeLoading, setQuickCodeLoading] = useState(false);
-  const [quickCodeError, setQuickCodeError] = useState<string | null>(null);
 
   // Stored reference to the pending file on sender for live streaming
   const pendingFileRef = useRef<{
@@ -254,42 +250,26 @@ export default function Home() {
     [pairedDevice, session]
   );
 
-  // Quick join via 6-digit code directly from main screen
-  const handleQuickJoin = async (e: React.FormEvent) => {
+  const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    const code = quickCode.trim();
-    if (!code) return;
+    setIsDropOver(true);
+  }, []);
 
-    setQuickCodeLoading(true);
-    setQuickCodeError(null);
-    try {
-      const res = await joinPairingSession(code, session.clientId, session.clientName);
-      if (res.success && res.session) {
-        setPairedDevice({
-          deviceId: res.session.hostClientId,
-          deviceName: res.session.hostDeviceName,
-          ip: res.session.hostIp,
-          port: res.session.hostPort,
-          os: 'Desktop',
-          protocolVersion: '1.0.0',
-          capabilities: {
-            protocolVersion: '1.0.0',
-            transports: ['http-stream', 'relay'],
-            hashAlgorithms: ['sha256'],
-            resumable: true,
-            maxChunkSize: 64 * 1024 * 1024,
-          },
-          pairingState: 'PAIRED',
-          lastSeen: Date.now(),
-        });
-        setQuickCode('');
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDropOver(false);
+  }, []);
+
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDropOver(false);
+      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+        handleDropFirstFile(e.dataTransfer.files[0]);
       }
-    } catch (err) {
-      setQuickCodeError(err instanceof Error ? err.message : 'Invalid or expired pairing code');
-    } finally {
-      setQuickCodeLoading(false);
-    }
-  };
+    },
+    [handleDropFirstFile]
+  );
 
   /**
    * SENDER LISTENER:
@@ -524,7 +504,7 @@ export default function Home() {
   }, [transfers, activeTransfer]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-slate-100 selection:bg-cyan-500/20 selection:text-cyan-200">
+    <div className="min-h-screen flex flex-col bg-canvas-atmosphere text-warm-bone selection:bg-cyan-500/20 selection:text-cyan-200">
       <Navbar
         session={session}
         isConnected={isConnected}
@@ -534,7 +514,7 @@ export default function Home() {
         onRefresh={refreshState}
       />
 
-      <main className="flex-1 max-w-xl w-full mx-auto px-4 sm:px-6 py-6 space-y-5">
+      <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col justify-center">
         {/* ============================================================ */}
         {/* VIEW 1: ACTIVE LIVE TRANSFER IN PROGRESS OR COMPLETED        */}
         {/* ============================================================ */}
@@ -618,238 +598,34 @@ export default function Home() {
           />
         ) : (
           /* ============================================================ */
-          /* VIEW 4: CLEAN CONSUMER STANDBY & INSTANT DROPZONE            */
+          /* VIEW 4: THE LEGENDARY FLUID CANVAS                           */
           /* ============================================================ */
-          <>
-            {/* PROMINENT SHARING URL BANNER WITH QR CODE TOGGLE */}
-            <div className="p-5 rounded-3xl bg-gradient-to-br from-surface-50 via-surface-100 to-surface-50 border border-cyan-500/30 shadow-xl space-y-3.5 relative overflow-hidden animate-fade-in">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2.5">
-                  <span className="flex h-3 w-3 relative">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" />
-                  </span>
-                  <span className="text-xs font-bold tracking-wider uppercase text-cyan-400">
-                    Sharing Active on Local Network
-                  </span>
-                </div>
-                {pairedDevice ? (
-                  <span className="inline-flex items-center space-x-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/30">
-                    <Check className="w-3 h-3" />
-                    <span>Connected to {pairedDevice.deviceName}</span>
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-medium text-slate-400 bg-white/5 border border-white/5">
-                    <Loader2 className="w-3 h-3 animate-spin text-cyan-400" />
-                    <span>Waiting for receiver...</span>
-                  </span>
-                )}
-              </div>
-
-              <div className="space-y-1.5">
-                <p className="text-xs text-slate-300">
-                  Open this link on any phone or laptop on the same Wi-Fi:
-                </p>
-                <div className="flex items-center space-x-2 pt-0.5">
-                  <div
-                    suppressHydrationWarning
-                    className="flex-1 px-3.5 py-2.5 rounded-2xl bg-surface-200 border border-white/10 font-mono text-xs sm:text-sm text-cyan-300 font-semibold select-all truncate tracking-wide"
-                  >
-                    {activeSharingUrl || 'http://127.0.0.1:37821'}
-                  </div>
-                  <button
-                    onClick={handleCopyShareLink}
-                    className="px-3.5 py-2.5 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-semibold text-xs shadow-md shadow-cyan-500/20 active:scale-95 transition-all flex items-center space-x-1.5 flex-shrink-0"
-                  >
-                    {copiedLink ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-white" />
-                        <span>Copied</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copy URL</span>
-                      </>
-                    )}
-                  </button>
-                  <button
-                    onClick={() => setShowNetworkQr(!showNetworkQr)}
-                    className={`p-2.5 rounded-2xl border transition-all flex items-center justify-center flex-shrink-0 ${
-                      showNetworkQr
-                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40 shadow-sm'
-                        : 'bg-surface-200 hover:bg-surface-100 text-slate-300 border-white/10 hover:border-cyan-500/30'
-                    }`}
-                    title="Toggle QR Code"
-                  >
-                    <QrCode className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Collapsible Connection QR Code */}
-              {showNetworkQr && (
-                <div className="pt-2 animate-fade-in">
-                  <QrCodeCard
-                    url={directPairingUrl || activeSharingUrl}
-                    title="Scan to Connect Instantly"
-                    subtitle="Point your phone camera to pair both devices in 1 second"
-                    size={180}
-                    showCopy={false}
-                  />
-                </div>
-              )}
-
-              <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1.5 border-t border-white/5">
-                <span className="flex items-center space-x-1">
-                  <Wifi className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Same Wi-Fi / Phone Hotspot</span>
-                </span>
-                <button
-                  onClick={() => handleOpenPairing('create')}
-                  className="text-cyan-400 hover:text-cyan-300 font-medium hover:underline flex items-center space-x-1"
-                >
-                  <KeyRound className="w-3 h-3" />
-                  <span>Or use 6-digit code</span>
-                </button>
-              </div>
-            </div>
-
-            {/* THE HERO CENTERPIECE: TACTILE DROPZONE */}
-            <Dropzone
-              onFileSelected={handleDropFirstFile}
-              isSending={isSending}
-            />
-
-            {/* CONNECTIVITY & DISCOVERED PEERS / 6-DIGIT CODE */}
-            {pairedDevice ? (
-              <div className="p-4 rounded-3xl bg-emerald-500/10 border border-emerald-500/30 shadow-lg flex items-center justify-between animate-fade-in">
-                <div className="flex items-center space-x-3 min-w-0 pr-2">
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center flex-shrink-0">
-                    <Laptop className="w-5 h-5" />
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center space-x-1.5">
-                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400">
-                        Paired Device
-                      </span>
-                    </div>
-                    <p className="text-sm font-bold text-white truncate">
-                      {pairedDevice.deviceName}
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setPairedDevice(null)}
-                  className="px-3 py-1.5 rounded-xl text-xs text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 border border-white/5 transition-all flex items-center space-x-1"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  <span>Unpair</span>
-                </button>
-              </div>
-            ) : (
-              <div className="p-5 rounded-3xl bg-surface-50 border border-white/10 space-y-4 shadow-xl animate-fade-in">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-sm font-bold text-white">Direct Pairing</h3>
-                    <p className="text-xs text-slate-400">
-                      Connect via 6-digit code or nearby device discovery.
-                    </p>
-                  </div>
-                  <button
-                    onClick={refreshState}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-400 hover:bg-white/5 transition-colors"
-                    title="Refresh nearby devices"
-                  >
-                    <RefreshCw className="w-4 h-4" />
-                  </button>
-                </div>
-
-                {/* 6-Digit Code Input Form */}
-                <form
-                  onSubmit={handleQuickJoin}
-                  className="p-3.5 rounded-2xl bg-surface-100/80 border border-white/5 space-y-2.5"
-                >
-                  <label className="text-xs font-semibold text-slate-300 flex items-center space-x-1.5">
-                    <KeyRound className="w-3.5 h-3.5 text-cyan-400" />
-                    <span>Enter 6-digit code from other device:</span>
-                  </label>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="text"
-                      value={quickCode}
-                      onChange={(e) => setQuickCode(e.target.value)}
-                      placeholder="e.g. 482-195"
-                      maxLength={7}
-                      className="flex-1 px-3.5 py-2 rounded-xl bg-surface-200 border border-white/10 text-white placeholder-slate-500 font-mono text-center text-sm font-semibold tracking-wider focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20"
-                    />
-                    <button
-                      type="submit"
-                      disabled={quickCodeLoading || !quickCode.trim()}
-                      className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-semibold text-xs flex items-center space-x-1 shadow-md shadow-cyan-500/20 active:scale-95 transition-all disabled:opacity-50"
-                    >
-                      {quickCodeLoading ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                      ) : (
-                        <>
-                          <span>Connect</span>
-                          <ArrowRight className="w-3.5 h-3.5" />
-                        </>
-                      )}
-                    </button>
-                  </div>
-                  {quickCodeError && (
-                    <p className="text-[11px] text-rose-400 font-medium">{quickCodeError}</p>
-                  )}
-                </form>
-
-                <div className="grid grid-cols-2 gap-2.5">
-                  <button
-                    onClick={() => handleOpenPairing('create')}
-                    className="p-3 rounded-2xl bg-surface-100 hover:bg-surface-200 border border-white/10 text-cyan-300 font-semibold text-xs flex items-center justify-center space-x-2 transition-all active:scale-95"
-                  >
-                    <KeyRound className="w-4 h-4 text-cyan-400" />
-                    <span>Show My Code</span>
-                  </button>
-
-                  <button
-                    onClick={handleCopyShareLink}
-                    className="p-3 rounded-2xl bg-surface-100 hover:bg-surface-200 border border-white/10 text-slate-200 font-semibold text-xs flex items-center justify-center space-x-2 transition-all active:scale-95"
-                  >
-                    {copiedLink ? (
-                      <Check className="w-4 h-4 text-emerald-400" />
-                    ) : (
-                      <Copy className="w-4 h-4 text-slate-400" />
-                    )}
-                    <span>{copiedLink ? 'Copied!' : 'Copy Share Link'}</span>
-                  </button>
-                </div>
-
-                {/* Discovered LAN Peers */}
-                {devices.length > 0 && (
-                  <div className="pt-3 border-t border-white/5 space-y-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
-                      Discovered on Wi-Fi:
-                    </span>
-                    <div className="flex flex-wrap gap-2">
-                      {devices.map((d) => (
-                        <button
-                          key={d.deviceId}
-                          onClick={() => setPairedDevice(d)}
-                          className="px-3 py-1.5 rounded-xl bg-surface-100 hover:bg-surface-200 border border-white/10 text-xs text-white font-medium flex items-center space-x-2 transition-all hover:border-cyan-500/30 active:scale-95"
-                        >
-                          <Laptop className="w-3.5 h-3.5 text-cyan-400" />
-                          <span>{d.deviceName}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </>
+          <FluidCanvas
+            clientName={session.clientName}
+            activeSharingUrl={activeSharingUrl}
+            directPairingUrl={directPairingUrl}
+            pairedDevice={pairedDevice}
+            nearbyDevices={devices}
+            onSelectDevice={(device) => {
+              setPairedDevice(device);
+            }}
+            onFileSelected={handleDropFirstFile}
+            onDropOnDevice={(device, file) => {
+              setPairedDevice(device);
+              handleDropFirstFile(file);
+            }}
+            onOpenQr={() => setShowNetworkQr(true)}
+            showQr={showNetworkQr}
+            onToggleQr={() => setShowNetworkQr(!showNetworkQr)}
+            onCopyUrl={handleCopyShareLink}
+            copiedLink={copiedLink}
+            onOpenPairing={handleOpenPairing}
+            onOpenDiagnostics={() => setIsDiagnosticsOpen(true)}
+            isDragOver={isDropOver}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          />
         )}
       </main>
 

@@ -49,15 +49,15 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
   const isRelay = transfer.transportMode === 'RELAY_STREAM';
 
   return (
-    <div className="p-5 rounded-3xl bg-surface-50 border border-white/10 shadow-xl transition-all space-y-3">
+    <div className="p-6 rounded-3xl bg-obsidian-card/95 border border-white/[0.08] shadow-2xl backdrop-blur-2xl transition-all space-y-4">
       {/* Top Header */}
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center space-x-3 min-w-0">
+        <div className="flex items-center space-x-3.5 min-w-0">
           <div
-            className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${
+            className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-inner ${
               isSender
-                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                ? 'bg-blue-500/15 text-blue-400 border border-blue-500/25'
+                : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/25'
             }`}
           >
             {isSender ? <ArrowUpRight className="w-5 h-5" /> : <ArrowDownLeft className="w-5 h-5" />}
@@ -65,7 +65,7 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
 
           <div className="min-w-0">
             <div className="flex items-center space-x-2">
-              <span className="text-xs uppercase tracking-wider font-bold text-slate-400">
+              <span className="text-xs uppercase tracking-wider font-bold text-warm-sand">
                 {isSender ? `Sending to ${transfer.peerName}` : `Receiving from ${transfer.peerName}`}
               </span>
 
@@ -76,13 +76,13 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
                   <span>Relay</span>
                 </span>
               ) : (
-                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-500/15 text-emerald-300 border border-emerald-500/25">
                   <Zap className="w-3 h-3 text-emerald-400" />
                   <span>Direct</span>
                 </span>
               )}
             </div>
-            <h4 className="text-sm font-semibold text-white truncate max-w-md" title={transfer.fileName}>
+            <h4 className="text-base font-bold text-warm-bone truncate max-w-md mt-0.5" title={transfer.fileName}>
               {transfer.fileName}
             </h4>
           </div>
@@ -93,7 +93,7 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
           {(isWaiting || isTransferring) && (
             <button
               onClick={() => onCancel(transfer.transferId)}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+              className="p-1.5 rounded-xl text-warm-sand hover:text-rose-400 hover:bg-rose-500/10 border border-white/[0.04] transition-colors"
               title="Cancel transfer"
             >
               <XCircle className="w-4 h-4" />
@@ -101,7 +101,7 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
           )}
 
           {isCompleted && (
-            <div className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-xs text-emerald-400 font-semibold">
+            <div className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-xs text-emerald-400 font-semibold shadow-sm">
               <ShieldCheck className="w-4 h-4" />
               <span>{isSender ? 'Streamed Directly' : 'Saved to Device'}</span>
             </div>
@@ -117,7 +117,7 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
       </div>
 
       {/* Progress Bar */}
-      <div className="relative w-full h-2.5 rounded-full bg-surface-200 overflow-hidden mb-3">
+      <div className="relative w-full h-2.5 rounded-full bg-obsidian-hover overflow-hidden">
         {isWaiting ? (
           <div className="h-full w-full bg-gradient-to-r from-blue-500/30 to-cyan-500/30 animate-pulse rounded-full" />
         ) : (
@@ -127,7 +127,7 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
                 ? 'bg-gradient-to-r from-emerald-500 to-teal-400'
                 : isFailed
                 ? 'bg-rose-500'
-                : 'bg-gradient-to-r from-blue-500 to-cyan-400'
+                : 'bg-gradient-to-r from-blue-500 via-cyan-400 to-emerald-400'
             }`}
             style={{ width: `${Math.min(100, Math.max(0, transfer.percentage))}%` }}
           />
@@ -135,7 +135,7 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
       </div>
 
       {/* Status & Metrics */}
-      <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
+      <div className="flex items-center justify-between text-xs text-warm-sand font-mono tabular-nums">
         {isWaiting ? (
           <span className="text-cyan-400 animate-pulse">
             {transfer.status === 'OFFERED'

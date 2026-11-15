@@ -47,25 +47,25 @@ export function InstantShareCard({
   return (
     <div className="w-full space-y-5 animate-fade-in">
       {/* File Showcase Hero Banner */}
-      <div className="p-5 rounded-3xl bg-gradient-to-br from-surface-100 via-surface-50 to-surface-100 border border-cyan-500/30 shadow-2xl relative overflow-hidden">
+      <div className="p-6 rounded-3xl bg-obsidian-card/95 border border-white/[0.08] shadow-2xl relative overflow-hidden backdrop-blur-2xl">
         <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center space-x-4 min-w-0">
-            <div className="w-14 h-14 rounded-2xl bg-surface-200/90 border border-white/10 flex items-center justify-center flex-shrink-0 shadow-inner">
+            <div className="w-14 h-14 rounded-2xl bg-obsidian-base border border-white/[0.08] flex items-center justify-center flex-shrink-0 shadow-inner">
               <FileIcon fileName={file.name} mimeType={file.type} className="w-8 h-8" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center space-x-2">
-                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/25">
                   <Sparkles className="w-3 h-3" />
                   <span>Ready to Stream</span>
                 </span>
-                <span className="text-xs font-mono text-slate-400">
+                <span className="text-xs font-mono text-warm-sand">
                   {formatBytes(file.size)}
                 </span>
               </div>
-              <h3 className="text-lg font-bold text-white truncate max-w-sm mt-0.5" title={file.name}>
+              <h3 className="text-lg font-bold text-warm-bone truncate max-w-sm mt-0.5" title={file.name}>
                 {file.name}
               </h3>
             </div>
@@ -73,7 +73,7 @@ export function InstantShareCard({
 
           <button
             onClick={onCancel}
-            className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-400 hover:text-white transition-all flex-shrink-0"
+            className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-warm-sand hover:text-warm-bone transition-all flex-shrink-0"
             title="Cancel & Choose Another File"
           >
             <X className="w-4 h-4" />
@@ -81,17 +81,17 @@ export function InstantShareCard({
         </div>
 
         {/* Live waiting pulse */}
-        <div className="mt-4 pt-3.5 border-t border-white/5 flex items-center justify-between text-xs text-slate-300">
+        <div className="mt-4 pt-3.5 border-t border-white/[0.06] flex items-center justify-between text-xs text-warm-sand">
           <div className="flex items-center space-x-2">
             <span className="flex h-2.5 w-2.5 relative">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500" />
             </span>
-            <span className="font-medium text-slate-200">
+            <span className="font-medium text-warm-bone">
               Waiting for receiver to connect...
             </span>
           </div>
-          <span className="text-[11px] text-slate-400 hidden sm:inline">
+          <span className="text-[11px] text-warm-stone hidden sm:inline">
             Zero duplicate copies stored on disk
           </span>
         </div>
@@ -108,13 +108,13 @@ export function InstantShareCard({
 
       {/* Direct Send to Discovered Nearby Peers */}
       {availableDevices.length > 0 && (
-        <div className="p-4 rounded-3xl bg-surface-100/60 border border-white/10 space-y-3">
+        <div className="p-4 rounded-3xl bg-obsidian-card/90 border border-white/[0.08] space-y-3 shadow-lg">
           <div className="flex items-center justify-between px-1">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-slate-300 uppercase tracking-wider">
+            <div className="flex items-center space-x-1.5 text-xs font-bold text-warm-bone uppercase tracking-wider">
               <Zap className="w-3.5 h-3.5 text-amber-400" />
               <span>Send Directly to Nearby Device</span>
             </div>
-            <span className="text-[11px] text-slate-400 font-mono">
+            <span className="text-[11px] text-warm-stone font-mono">
               {availableDevices.length} available
             </span>
           </div>

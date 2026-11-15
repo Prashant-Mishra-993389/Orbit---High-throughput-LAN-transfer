@@ -28,7 +28,7 @@ export function QrCodeCard({
       width: size * 2, // 2x for retina sharpness
       margin: 2,
       color: {
-        dark: '#090d16',
+        dark: '#0b0c10',
         light: '#ffffff',
       },
       errorCorrectionLevel: 'M',
@@ -45,7 +45,7 @@ export function QrCodeCard({
   };
 
   return (
-    <div className="flex flex-col items-center p-5 rounded-3xl bg-surface-100/90 border border-white/10 shadow-2xl space-y-4 text-center backdrop-blur-md">
+    <div className="flex flex-col items-center p-5 rounded-3xl bg-obsidian-card/95 border border-white/[0.08] shadow-2xl space-y-4 text-center backdrop-blur-md">
       <div className="space-y-1">
         <div className="flex items-center justify-center space-x-1.5 text-xs font-bold text-cyan-400 uppercase tracking-wider">
           <Smartphone className="w-3.5 h-3.5" />

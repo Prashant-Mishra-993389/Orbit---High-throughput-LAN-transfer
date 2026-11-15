@@ -7,26 +7,34 @@
 }
 
 body {
-  background-color: #090d16;
-  color: #f1f5f9;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #0b0c10;
+  color: #f4f3ef;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   overflow-x: hidden;
+  letter-spacing: -0.011em;
+}
+
+/* Atmospheric Ambient Background */
+.bg-canvas-atmosphere {
+  background-color: #0b0c10;
+  background-image: radial-gradient(circle at 50% -10%, rgba(59, 130, 246, 0.08) 0%, transparent 55%),
+                    radial-gradient(circle at 50% 110%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
 }
 
 /* Custom slick scrollbars */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
-  background: #0d121f;
+  background: #0b0c10;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #1e2029;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #2d303f;
 }
 
 /* Spatial Radar Keyframes */

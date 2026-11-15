@@ -35,16 +35,16 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="border-b border-white/10 bg-surface-50/80 backdrop-blur-xl sticky top-0 z-40">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+    <header className="border-b border-white/[0.04] bg-obsidian-void/70 backdrop-blur-2xl sticky top-0 z-40 transition-colors">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
         {/* Brand */}
-        <div className="flex items-center space-x-3">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-cyan-400 flex items-center justify-center shadow-md shadow-blue-500/20">
-            <Laptop className="w-5 h-5 text-white" />
+        <div className="flex items-center space-x-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-cyan-500 to-emerald-400 flex items-center justify-center shadow-md shadow-blue-500/10">
+            <Laptop className="w-4 h-4 text-slate-950 font-bold" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-base font-bold tracking-tight text-white">ShareLAN</span>
+              <span className="text-sm font-bold tracking-tight text-warm-bone">ShareLAN</span>
               <span className="flex h-2 w-2 relative">
                 {isConnected ? (
                   <>
@@ -56,15 +56,14 @@ export const Navbar: React.FC<NavbarProps> = ({
                 )}
               </span>
             </div>
-            <p className="text-[11px] text-slate-400">Direct Local Network Transfer</p>
           </div>
         </div>
 
         {/* Device Identity, Diagnostics & Settings */}
         <div className="flex items-center space-x-2">
           {/* My Device Name Badge */}
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-surface-100 border border-white/5 text-xs text-slate-300">
-            <span className="text-slate-500">You:</span>
+          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-obsidian-card border border-white/[0.08] text-xs text-warm-sand">
+            <span className="text-warm-stone">You:</span>
             {isEditingName ? (
               <div className="flex items-center space-x-1">
                 <input
@@ -72,7 +71,7 @@ export const Navbar: React.FC<NavbarProps> = ({
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
-                  className="w-24 px-1 py-0.5 bg-surface-200 text-white rounded text-xs border border-cyan-400 focus:outline-none"
+                  className="w-24 px-1 py-0.5 bg-obsidian-hover text-warm-bone rounded text-xs border border-cyan-400 focus:outline-none"
                   autoFocus
                 />
                 <button onClick={handleSaveName} className="text-emerald-400 hover:text-emerald-300">
@@ -82,13 +81,13 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <div
                 onClick={() => setIsEditingName(true)}
-                className="flex items-center space-x-1 cursor-pointer hover:text-white group"
+                className="flex items-center space-x-1 cursor-pointer hover:text-warm-bone group"
                 title="Click to rename device"
               >
-                <span suppressHydrationWarning className="font-semibold text-white truncate max-w-[110px] sm:max-w-none">
+                <span suppressHydrationWarning className="font-semibold text-warm-bone truncate max-w-[110px] sm:max-w-none">
                   {session.clientName}
                 </span>
-                <Edit2 className="w-3 h-3 text-slate-500 group-hover:text-cyan-400" />
+                <Edit2 className="w-3 h-3 text-warm-stone group-hover:text-cyan-400" />
               </div>
             )}
           </div>
@@ -96,7 +95,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Network diagnostics button */}
           <button
             onClick={onOpenBenchmark}
-            className="p-2 rounded-xl bg-surface-100 hover:bg-surface-200 border border-white/5 text-slate-300 hover:text-white transition-colors"
+            className="p-2 rounded-xl bg-obsidian-card hover:bg-obsidian-hover border border-white/[0.08] text-warm-sand hover:text-warm-bone transition-colors"
             title="Network Info & Throughput Benchmark"
           >
             <Activity className="w-4 h-4 text-cyan-400" />
@@ -106,10 +105,10 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onOpenSettings && (
             <button
               onClick={onOpenSettings}
-              className="p-2 rounded-xl bg-surface-100 hover:bg-surface-200 border border-white/5 text-slate-300 hover:text-white transition-colors"
+              className="p-2 rounded-xl bg-obsidian-card hover:bg-obsidian-hover border border-white/[0.08] text-warm-sand hover:text-warm-bone transition-colors"
               title="Settings"
             >
-              <Settings className="w-4 h-4 text-slate-400 hover:text-white" />
+              <Settings className="w-4 h-4 text-warm-sand hover:text-warm-bone" />
             </button>
           )}
         </div>
