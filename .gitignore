@@ -15,5 +15,6 @@ temp/
 coverage/
 release/
 *.bin
+*.tsbuildinfo
 .DS_Store
 Thumbs.db

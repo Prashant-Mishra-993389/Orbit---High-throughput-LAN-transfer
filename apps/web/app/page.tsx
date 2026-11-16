@@ -12,7 +12,6 @@ import { OnboardingModal } from '../components/OnboardingModal';
 import { SettingsModal } from '../components/SettingsModal';
 import { InstantShareCard } from '../components/InstantShareCard';
 import { ReceiverView } from '../components/ReceiverView';
-import { QrCodeCard } from '../components/QrCodeCard';
 import { playSuccessChime, playOfferChime } from '../lib/sound';
 import {
   createTransferOffer,
@@ -45,7 +44,6 @@ import {
   Wifi,
   Sparkles,
 } from 'lucide-react';
-import { formatBytes } from '@sharelan/shared';
 
 export default function Home() {
   const {

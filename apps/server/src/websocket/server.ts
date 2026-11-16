@@ -1,6 +1,6 @@
 import { WebSocket } from 'ws';
 import { FastifyInstance } from 'fastify';
-import { ControlMessage, DeviceInfo, SHARELAN_PROTOCOL_VERSION } from '@sharelan/protocol';
+import { ControlMessage } from '@sharelan/protocol';
 import { transferManager } from '../transfers/TransferManager.js';
 import { getNetworkDiagnostics } from '../diagnostics/network.js';
 import { config } from '../config/index.js';

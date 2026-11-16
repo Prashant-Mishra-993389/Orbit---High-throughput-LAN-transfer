@@ -13,12 +13,8 @@ import {
   Zap,
   Sparkles,
   X,
-  Wifi,
   FilePlus2,
-  ChevronRight,
-  ShieldCheck,
 } from 'lucide-react';
-import { QrCodeCard } from './QrCodeCard';
 
 interface FluidCanvasProps {
   clientName: string;

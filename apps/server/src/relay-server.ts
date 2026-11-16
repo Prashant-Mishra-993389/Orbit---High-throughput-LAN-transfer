@@ -3,7 +3,7 @@ import cors from '@fastify/cors';
 import fastifyWebsocket from '@fastify/websocket';
 import { relayBridge } from './transfers/RelayBridge.js';
 import { pairingManager } from './pairing/PairingManager.js';
-import { wsHub, registerWebSocketRoutes } from './websocket/server.js';
+import { registerWebSocketRoutes } from './websocket/server.js';
 import { SHARELAN_PROTOCOL_VERSION } from '@sharelan/protocol';
 
 const joinAttemptsByIp = new Map<string, { attempts: number; resetAt: number }>();
