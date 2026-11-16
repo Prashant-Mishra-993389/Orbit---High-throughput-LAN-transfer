@@ -55,7 +55,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
             </div>
 
             <div className="space-y-1.5">
-              <h2 className="text-2xl font-bold tracking-tight text-white">Welcome to ShareLAN</h2>
+              <h2 className="text-2xl font-bold tracking-tight text-white">Welcome to Orbit</h2>
               <p className="text-xs text-slate-300 max-w-sm mx-auto leading-relaxed">
                 AirDrop-speed file transfer between your laptops and computers. Zero cloud uploads.
               </p>

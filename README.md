@@ -1,6 +1,6 @@
-# ShareLAN — High-Performance Local Network File Transfer System
+# Orbit — High-Performance Local Network File Streaming System
 
-> **AirDrop for laptops on a local network with streaming throughput, zero cloud storage, and cryptographic integrity verification.**
+> **AirDrop for laptops and mobile devices on a local network with multi-gigabit streaming throughput, zero cloud storage, and cryptographic integrity verification.**
 
 ---
 

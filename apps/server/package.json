@@ -1,7 +1,7 @@
 {
   "name": "@sharelan/server",
   "version": "1.0.0",
-  "description": "ShareLAN High-Performance Local Network Streaming Server",
+  "description": "Orbit High-Performance Local Network Streaming Server",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "type": "module",

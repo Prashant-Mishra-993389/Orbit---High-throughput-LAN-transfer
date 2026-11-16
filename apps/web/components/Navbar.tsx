@@ -44,7 +44,7 @@ export const Navbar: React.FC<NavbarProps> = ({
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-sm font-bold tracking-tight text-warm-bone">ShareLAN</span>
+              <span className="text-sm font-bold tracking-tight text-warm-bone">Orbit</span>
               <span className="flex h-2 w-2 relative">
                 {isConnected ? (
                   <>

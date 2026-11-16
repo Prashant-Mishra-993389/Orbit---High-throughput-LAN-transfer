@@ -2,7 +2,7 @@
   "name": "@sharelan/web",
   "version": "1.0.0",
   "private": true,
-  "description": "ShareLAN Modern Desktop-Grade Web Interface",
+  "description": "Orbit Modern Desktop-Grade Web Interface",
   "scripts": {
     "dev": "next dev -p 3000",
     "build": "next build",

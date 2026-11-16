@@ -81,7 +81,7 @@ async function bootstrapApp() {
   });
 
   ipcMain.handle('shell:openDownloads', async () => {
-    const downloadsPath = path.join(os.homedir(), 'Downloads', 'ShareLAN');
+    const downloadsPath = path.join(os.homedir(), 'Downloads', 'Orbit');
     if (!fs.existsSync(downloadsPath)) {
       fs.mkdirSync(downloadsPath, { recursive: true });
     }
@@ -94,7 +94,7 @@ async function bootstrapApp() {
     height: 780,
     minWidth: 440,
     minHeight: 620,
-    title: 'ShareLAN',
+    title: 'Orbit',
     backgroundColor: '#030712',
     show: false,
     autoHideMenuBar: true,
@@ -108,7 +108,7 @@ async function bootstrapApp() {
 
   // Register native download handler for streaming downloads in Electron
   mainWindow.webContents.session.on('will-download', (_event: any, item: any) => {
-    const downloadsPath = path.join(os.homedir(), 'Downloads', 'ShareLAN');
+    const downloadsPath = path.join(os.homedir(), 'Downloads', 'Orbit');
     if (!fs.existsSync(downloadsPath)) {
       fs.mkdirSync(downloadsPath, { recursive: true });
     }

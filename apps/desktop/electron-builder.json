@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "com.sharelan.desktop",
-  "productName": "ShareLAN",
-  "copyright": "Copyright © 2026 ShareLAN Team",
+  "appId": "com.orbit.desktop",
+  "productName": "Orbit",
+  "copyright": "Copyright © 2026 Orbit Team",
   "electronVersion": "33.4.11",
   "npmRebuild": false,
   "nodeGypRebuild": false,
@@ -56,11 +56,11 @@
     "allowToChangeInstallationDirectory": true,
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "ShareLAN",
-    "artifactName": "ShareLAN-Setup-${version}.${ext}",
-    "uninstallDisplayName": "ShareLAN"
+    "shortcutName": "Orbit",
+    "artifactName": "Orbit-Setup-${version}.${ext}",
+    "uninstallDisplayName": "Orbit"
   },
   "portable": {
-    "artifactName": "ShareLAN-Portable-${version}.${ext}"
+    "artifactName": "Orbit-Portable-${version}.${ext}"
   }
 }

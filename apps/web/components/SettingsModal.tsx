@@ -165,7 +165,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div className="pt-2 border-t border-white/5 space-y-3">
           <div className="flex items-center justify-between text-xs text-slate-400">
             <div>
-              <p className="font-bold text-white">ShareLAN Desktop</p>
+              <p className="font-bold text-white">Orbit Desktop</p>
               <p className="text-[11px]">Version 1.0.0 (Production)</p>
             </div>
             <button

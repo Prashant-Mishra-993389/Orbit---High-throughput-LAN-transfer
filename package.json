@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "ShareLAN — High-Performance Local Network File Transfer System",
+  "description": "Orbit — High-Performance Local Network File Streaming System",
   "workspaces": [
     "packages/*",
     "apps/*"

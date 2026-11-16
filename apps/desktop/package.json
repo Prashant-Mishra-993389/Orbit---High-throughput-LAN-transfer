@@ -1,8 +1,8 @@
 {
   "name": "@sharelan/desktop",
   "version": "1.0.0",
-  "description": "ShareLAN Desktop Application for Windows, macOS, and Linux",
-  "author": "ShareLAN Team",
+  "description": "Orbit Desktop Application for Windows, macOS, and Linux",
+  "author": "Orbit Team",
   "main": "dist/main/index.js",
   "type": "module",
   "scripts": {

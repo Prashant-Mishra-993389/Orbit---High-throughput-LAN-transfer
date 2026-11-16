@@ -114,7 +114,7 @@ export async function startServer(options: ServerOptions = {}): Promise<RunningS
 
   const diag = getNetworkDiagnostics(actualPort);
   console.log('\n======================================================');
-  console.log('   🚀 ShareLAN Streaming Server Started Successfully');
+  console.log('   🚀 Orbit Streaming Server Started Successfully');
   console.log('======================================================');
   console.log(` ▸ Local URL:       http://localhost:${actualPort}`);
   console.log(` ▸ LAN Direct URL:  http://${diag.localIp}:${actualPort}`);
@@ -161,7 +161,7 @@ if (isDirectRun) {
   });
 
   const shutdown = async () => {
-    console.log('\nShutting down ShareLAN gracefully...');
+    console.log('\nShutting down Orbit gracefully...');
     await stopServer();
     process.exit(0);
   };

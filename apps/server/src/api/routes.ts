@@ -690,8 +690,8 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
 
 function osHostname(): string {
   try {
-    return (process.env.COMPUTERNAME || process.env.HOSTNAME || 'ShareLAN-Device');
+    return (process.env.COMPUTERNAME || process.env.HOSTNAME || 'Orbit-Device');
   } catch {
-    return 'ShareLAN-Device';
+    return 'Orbit-Device';
   }
 }

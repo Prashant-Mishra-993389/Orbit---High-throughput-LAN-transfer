@@ -21,7 +21,7 @@ function resolveDefaultStorageDir(): string {
 
   // Windows priority: check USERPROFILE Downloads
   const userHome = os.homedir();
-  const downloadsPath = path.join(userHome, 'Downloads', 'ShareLAN');
+  const downloadsPath = path.join(userHome, 'Downloads', 'Orbit');
   return downloadsPath;
 }
 

@@ -200,7 +200,7 @@ export async function createRelayServer(port = 37825): Promise<FastifyInstance> 
 if (process.argv[1]?.endsWith('relay-server.ts') || process.argv[1]?.endsWith('relay-server.js')) {
   const port = parseInt(process.env.RELAY_PORT || '37825', 10);
   createRelayServer(port).then(() => {
-    console.log(`\n⚡ ShareLAN Out-of-Band Standalone Relay running on port ${port}\n`);
+    console.log(`\n⚡ Orbit Out-of-Band Standalone Relay running on port ${port}\n`);
   }).catch((err) => {
     console.error('Failed to start standalone relay:', err);
     process.exit(1);
