@@ -1,6 +1,19 @@
 # Orbit — High-Performance Local Network File Streaming System
 
+[![Download Orbit for Windows](https://img.shields.io/badge/Download-Orbit%20v1.0.0%20(Windows%20Portable)-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://github.com/Prashant-Mishra-993389/Orbit---High-throughput-LAN-transfer/releases/download/v1.0.0/Orbit-Portable-1.0.0.exe)
+[![GitHub Release](https://img.shields.io/github/v/release/Prashant-Mishra-993389/Orbit---High-throughput-LAN-transfer?style=for-the-badge&color=28a745)](https://github.com/Prashant-Mishra-993389/Orbit---High-throughput-LAN-transfer/releases/latest)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+
 > **AirDrop for laptops and mobile devices on a local network with multi-gigabit streaming throughput, zero cloud storage, and cryptographic integrity verification.**
+
+---
+
+## 📥 Instant Download (No Setup Required)
+
+| Platform | Download | Setup |
+| :--- | :--- | :--- |
+| **Windows 10 / 11** | [**Download Orbit Portable (.exe)**](https://github.com/Prashant-Mishra-993389/Orbit---High-throughput-LAN-transfer/releases/download/v1.0.0/Orbit-Portable-1.0.0.exe) *(72 MB)* | **Zero install.** Double-click to run anywhere. |
+| **Android / iOS / Mac** | **No app needed!** | Scan the on-screen QR code from your phone's camera. |
 
 ---
 
