@@ -17,6 +17,20 @@
 
 ---
 
+## 💻 The Problem: The Laptop-to-Laptop Transfer Gap
+
+While mobile ecosystems have convenient built-in tools for sharing photos, transferring **10+ GB heavy desktop payloads** (code repositories, game backups, 4K video exports, virtual machine images) between two laptops remains frustratingly broken—especially across Windows, macOS, and Linux.
+
+Users are frequently forced to search for physical USB drives or upload multi-gigabyte archives to cloud drives, burning expensive mobile data quotas and waiting through slow upload-then-download cycles.
+
+### ⚡ The Ad-Hoc Hotspot Solution (Zero Cellular Data)
+Orbit turns any standard local Wi-Fi network or **portable mobile hotspot** into an instant, high-speed data pipeline:
+* **Zero Cellular Data Consumed:** Connect both laptops to the same Wi-Fi or turn on a personal mobile hotspot. Orbit streams data entirely through the local ad-hoc wireless network layer—**0 MB of internet or cellular data is used**.
+* **Engineered for Heavy Desktop Payloads:** Streams multi-gigabyte files directly with 64 KiB backpressured buffers, maintaining a bounded memory footprint (<50 MB) without disk I/O bottlenecks.
+* **Cross-Platform Autonomy:** Runs as a standalone portable `.exe` on Windows, while Linux and macOS laptops connect seamlessly through any modern browser.
+
+---
+
 ## Key Features
 
 - ⚡ **Direct LAN Streaming**: Files stream directly from sender to receiver across local Wi-Fi or Ethernet. Zero cloud storage roundtrips.
@@ -37,8 +51,8 @@
 ### 2. Setup & Installation
 ```bash
 # Clone the repository
-git clone <repo-url>
-cd sharelan
+git clone https://github.com/Prashant-Mishra-993389/Orbit---High-throughput-LAN-transfer.git
+cd Orbit---High-throughput-LAN-transfer
 
 # Install all workspace dependencies
 npm install
