@@ -91,6 +91,9 @@ export default function Home() {
     relaySessionId?: string;
   } | null>(null);
 
+  // Stored reference to sender's host URL for live receiver progress polling
+  const receiverSenderHostRef = useRef<string | null>(null);
+
   const handleOpenPairing = (tab: 'create' | 'join' = 'join') => {
     setPairingTab(tab);
     setIsPairingOpen(true);
@@ -459,6 +462,89 @@ export default function Home() {
     }
   }, [activeTransfer?.status, activeTransfer?.percentage]);
 
+  // Listen for native Electron download progress & completion on receiver
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const api = (window as any).electronAPI;
+    if (!api) return;
+
+    const unsubProg = api.onDownloadProgress?.((data: any) => {
+      setActiveTransfer((prev) =>
+        prev && prev.role === 'receiver'
+          ? {
+              ...prev,
+              bytesTransferred: data.bytesTransferred,
+              fileSize: data.fileSize || prev.fileSize,
+              percentage: data.percentage,
+              currentSpeed: data.currentSpeed || prev.currentSpeed,
+              status: 'TRANSFERRING',
+            }
+          : prev
+      );
+    });
+
+    const unsubDone = api.onDownloadCompleted?.((_data: any) => {
+      setActiveTransfer((prev) =>
+        prev && prev.role === 'receiver'
+          ? {
+              ...prev,
+              status: 'COMPLETED',
+              percentage: 100,
+              bytesTransferred: prev.fileSize,
+            }
+          : prev
+      );
+    });
+
+    const unsubFail = api.onDownloadFailed?.((data: any) => {
+      setActiveTransfer((prev) =>
+        prev && prev.role === 'receiver'
+          ? {
+              ...prev,
+              status: 'FAILED',
+              error: `Download failed (${data?.state || 'interrupted'})`,
+            }
+          : prev
+      );
+    });
+
+    return () => {
+      unsubProg?.();
+      unsubDone?.();
+      unsubFail?.();
+    };
+  }, []);
+
+  // Poll sender's /api/transfers when receiving to guarantee live speed and byte updates in browsers
+  useEffect(() => {
+    if (!activeTransfer || activeTransfer.role !== 'receiver' || activeTransfer.status !== 'TRANSFERRING') return;
+    const targetHost = receiverSenderHostRef.current || getServerBaseUrl();
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`${targetHost}/api/transfers`);
+        if (!res.ok) return;
+        const list = await res.json();
+        const found = list.find((t: any) => t.transferId === activeTransfer.transferId);
+        if (found && found.bytesTransferred > 0) {
+          setActiveTransfer((prev) => {
+            if (!prev || prev.transferId !== activeTransfer.transferId) return prev;
+            return {
+              ...prev,
+              bytesTransferred: found.bytesTransferred,
+              percentage: found.percentage,
+              currentSpeed: found.currentSpeed,
+              averageSpeed: found.averageSpeed,
+              etaSeconds: found.etaSeconds,
+              status: found.status === 'COMPLETED' ? 'COMPLETED' : prev.status,
+              finalHash: found.finalHash || prev.finalHash,
+            };
+          });
+        }
+      } catch {}
+    }, 400);
+    return () => clearInterval(interval);
+  }, [activeTransfer?.transferId, activeTransfer?.role, activeTransfer?.status]);
+
   /**
    * RECIPIENT WORKFLOW:
    * Recipient clicks Accept & Save -> stream starts live directly into recipient device.
@@ -466,6 +552,11 @@ export default function Home() {
    */
   const handleAcceptOffer = async (offer: TransferOffer, fileHandle?: any) => {
     try {
+      receiverSenderHostRef.current =
+        offer.senderIp && offer.senderPort
+          ? `http://${offer.senderIp}:${offer.senderPort}`
+          : getServerBaseUrl();
+
       await acceptTransferOffer(offer.transferId, {
         receiverClientId: session.clientId,
         receiverDeviceName: session.clientName,

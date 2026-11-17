@@ -24,16 +24,40 @@ export function getClientSession(): ClientSession {
   }
 
   let clientName = localStorage.getItem(STORAGE_KEY_NAME);
-  if (!clientName) {
+  if (!clientName || clientName.startsWith('Laptop-') || clientName.startsWith('Desktop-')) {
+    // 1. If running in Electron desktop, auto-detect actual user name (e.g. "Prashant's Laptop")
+    if ((window as any).electronAPI?.getDeviceName) {
+      try {
+        const nativeName = (window as any).electronAPI.getDeviceName();
+        if (typeof nativeName === 'string' && nativeName.trim().length > 0) {
+          const finalName = nativeName.trim();
+          localStorage.setItem(STORAGE_KEY_NAME, finalName);
+          return { clientId, clientName: finalName };
+        }
+      } catch {}
+    }
+
+    // 2. Browser fallback: friendly OS-based device naming
     const isMac = navigator.userAgent.includes('Mac');
     const isWindows = navigator.userAgent.includes('Windows');
-    const isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-    const osType = isMobile ? 'Phone' : isMac ? 'Mac' : isWindows ? 'Laptop' : 'Device';
-    clientName = `${osType}-${clientId.substring(7, 11).toUpperCase()}`;
+    const isAndroid = navigator.userAgent.includes('Android');
+    const isIPhone = /iPhone|iPad/i.test(navigator.userAgent);
+
+    const friendlyName = isIPhone
+      ? 'iPhone'
+      : isAndroid
+      ? 'Android Phone'
+      : isMac
+      ? 'MacBook'
+      : isWindows
+      ? 'Windows Laptop'
+      : 'Nearby Laptop';
+
+    clientName = friendlyName;
     localStorage.setItem(STORAGE_KEY_NAME, clientName);
   }
 
-  return { clientId, clientName };
+  return { clientId, clientName: clientName || 'Nearby Laptop' };
 }
 
 export function setClientName(newName: string): void {

@@ -28,7 +28,15 @@ export class PeerDiscovery extends EventEmitter {
       os.hostname().toLowerCase().replace(/[^a-z0-9]/g, '-') +
       '-' +
       Math.floor(Math.random() * 1000);
-    this.localDeviceName = os.hostname();
+
+    let friendlyName = os.hostname();
+    try {
+      const user = os.userInfo().username;
+      if (user && user.toLowerCase() !== 'user' && user.toLowerCase() !== 'administrator') {
+        friendlyName = `${user.charAt(0).toUpperCase() + user.slice(1)}'s Laptop`;
+      }
+    } catch {}
+    this.localDeviceName = friendlyName;
   }
 
   public setPort(port: number): void {

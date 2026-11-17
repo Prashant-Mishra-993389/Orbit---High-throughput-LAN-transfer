@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, shell, powerMonitor, Tray } from 'electron
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
+import child_process from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { startServer, RunningServer } from '@sharelan/server';
 
@@ -60,6 +61,18 @@ async function bootstrapApp() {
 
   const serverPort = runningServer ? runningServer.port : 37821;
 
+  function getHumanDeviceName(): string {
+    try {
+      const user = os.userInfo().username;
+      if (user && user.toLowerCase() !== 'user' && user.toLowerCase() !== 'administrator') {
+        const capitalized = user.charAt(0).toUpperCase() + user.slice(1);
+        return `${capitalized}'s Laptop`;
+      }
+    } catch {}
+    const hostname = os.hostname();
+    return hostname.replace(/[-_]/g, ' ');
+  }
+
   // 2. Setup IPC bridges
   ipcMain.on('server:getUrl', (event: any) => {
     event.returnValue = `http://localhost:${serverPort}`;
@@ -71,6 +84,10 @@ async function bootstrapApp() {
 
   ipcMain.on('app:getVersion', (event: any) => {
     event.returnValue = app.getVersion();
+  });
+
+  ipcMain.on('system:getDeviceName', (event: any) => {
+    event.returnValue = getHumanDeviceName();
   });
 
   ipcMain.handle('app:setProgress', (_event: any, progress: number) => {
@@ -115,14 +132,33 @@ async function bootstrapApp() {
     const saveFilePath = path.join(downloadsPath, item.getFilename());
     item.setSavePath(saveFilePath);
 
+    let lastBytes = 0;
+    let lastTime = Date.now();
+    let currentSpeed = 0;
+
     item.on('updated', (_event: any, state: string) => {
       if (state === 'progressing') {
+        const received = item.getReceivedBytes();
+        const total = item.getTotalBytes();
+        const now = Date.now();
+        const elapsedSec = (now - lastTime) / 1000;
+        if (elapsedSec >= 0.4) {
+          currentSpeed = (received - lastBytes) / elapsedSec;
+          lastBytes = received;
+          lastTime = now;
+        }
+
         if (mainWindow && !mainWindow.isDestroyed()) {
-          const received = item.getReceivedBytes();
-          const total = item.getTotalBytes();
           if (total > 0) {
             mainWindow.setProgressBar(received / total);
           }
+          mainWindow.webContents.send('download:progress', {
+            filename: item.getFilename(),
+            bytesTransferred: received,
+            fileSize: total,
+            percentage: total > 0 ? (received / total) * 100 : 0,
+            currentSpeed,
+          });
         }
       }
     });
@@ -132,7 +168,43 @@ async function bootstrapApp() {
         mainWindow.setProgressBar(-1);
       }
       if (state === 'completed') {
+        const filename = item.getFilename();
         console.log(`Download completed and saved to: ${saveFilePath}`);
+
+        // Auto-unpack TAR folder bundles directly into real folders on disk
+        if (filename.endsWith('.tar')) {
+          try {
+            child_process.execFile('tar', ['-xf', saveFilePath, '-C', downloadsPath], (err) => {
+              if (!err) {
+                console.log(`Auto-unpacked ${filename} directly into ${downloadsPath}`);
+              }
+              if (mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('download:completed', {
+                  filename,
+                  savePath: saveFilePath,
+                  unpacked: !err,
+                });
+              }
+            });
+            return;
+          } catch (e) {
+            console.warn('Tar auto-unpack error:', e);
+          }
+        }
+
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('download:completed', {
+            filename,
+            savePath: saveFilePath,
+          });
+        }
+      } else {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('download:failed', {
+            filename: item.getFilename(),
+            state,
+          });
+        }
       }
     });
   });
