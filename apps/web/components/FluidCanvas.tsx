@@ -14,7 +14,9 @@ import {
   Sparkles,
   X,
   FilePlus2,
+  FolderPlus,
 } from 'lucide-react';
+import { packageFilesIntoTar, ScannedFile } from '../lib/folder';
 
 interface FluidCanvasProps {
   clientName: string;
@@ -60,6 +62,7 @@ export function FluidCanvas({
   onDrop,
 }: FluidCanvasProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const [hoveredDeviceId, setHoveredDeviceId] = useState<string | null>(null);
 
   // Exclude self from nearby devices list
@@ -68,8 +71,34 @@ export function FluidCanvas({
   );
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      onFileSelected(e.target.files[0]);
+    if (e.target.files && e.target.files.length > 0) {
+      if (e.target.files.length === 1) {
+        onFileSelected(e.target.files[0]);
+      } else {
+        const rawFiles = Array.from(e.target.files);
+        const scanned: ScannedFile[] = rawFiles.map((f) => ({
+          file: f,
+          relativePath: f.name,
+        }));
+        const tarFile = packageFilesIntoTar(scanned, `Orbit_Batch_${rawFiles.length}_Files`);
+        onFileSelected(tarFile);
+      }
+      e.target.value = '';
+    }
+  };
+
+  const handleFolderInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const rawFiles = Array.from(e.target.files);
+      const scanned: ScannedFile[] = rawFiles.map((f) => ({
+        file: f,
+        relativePath: (f as any).webkitRelativePath || f.name,
+      }));
+      const rootFolder = (rawFiles[0] as any).webkitRelativePath
+        ? (rawFiles[0] as any).webkitRelativePath.split('/')[0]
+        : 'Folder';
+      const tarFile = packageFilesIntoTar(scanned, rootFolder);
+      onFileSelected(tarFile);
       e.target.value = '';
     }
   };
@@ -85,6 +114,14 @@ export function FluidCanvas({
         type="file"
         ref={fileInputRef}
         onChange={handleFileInputChange}
+        multiple
+        className="hidden"
+      />
+      <input
+        type="file"
+        ref={folderInputRef}
+        onChange={handleFolderInputChange}
+        {...({ webkitdirectory: '', directory: '' } as any)}
         className="hidden"
       />
 
@@ -256,10 +293,31 @@ export function FluidCanvas({
               : 'or click to browse from device'}
           </p>
 
-          {/* Interactive Browse Pill */}
-          <div className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white/[0.06] group-hover:bg-white/[0.12] border border-white/[0.06] group-hover:border-white/[0.15] text-[11px] font-semibold text-warm-bone transition-all shadow-sm">
-            <FilePlus2 className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Select File</span>
+          {/* Interactive Browse Action Buttons */}
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                fileInputRef.current?.click();
+              }}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.06] hover:border-white/[0.15] text-[11px] font-semibold text-warm-bone transition-all shadow-sm"
+            >
+              <FilePlus2 className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Select File</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                folderInputRef.current?.click();
+              }}
+              className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.06] hover:border-white/[0.15] text-[11px] font-semibold text-warm-bone transition-all shadow-sm"
+            >
+              <FolderPlus className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Folder</span>
+            </button>
           </div>
         </div>
       </div>

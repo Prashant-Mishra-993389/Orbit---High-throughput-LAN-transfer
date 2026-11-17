@@ -59,7 +59,7 @@ export function InstantShareCard({
               <div className="flex items-center space-x-2">
                 <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/25">
                   <Sparkles className="w-3 h-3" />
-                  <span>Ready to Stream</span>
+                  <span>{file.name.endsWith('.tar') ? 'Folder Bundle' : 'Ready to Stream'}</span>
                 </span>
                 <span className="text-xs font-mono text-warm-sand">
                   {formatBytes(file.size)}

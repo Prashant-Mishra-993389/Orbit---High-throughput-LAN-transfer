@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { Copy, Check, QrCode, Smartphone, Sparkles } from 'lucide-react';
+import { copyTextToClipboard } from '../lib/clipboard';
 
 interface QrCodeCardProps {
   url: string;
@@ -37,11 +38,13 @@ export function QrCodeCard({
       .catch((err) => console.error('Failed to generate QR code:', err));
   }, [url, size]);
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!url) return;
-    navigator.clipboard.writeText(url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const ok = await copyTextToClipboard(url);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (

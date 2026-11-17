@@ -12,6 +12,7 @@ import {
   Sparkles,
 } from 'lucide-react';
 import { createPairingSession, joinPairingSession } from '../lib/api';
+import { copyTextToClipboard } from '../lib/clipboard';
 import { DeviceInfo, PairingSession } from '@sharelan/protocol';
 
 interface PairingModalProps {
@@ -107,11 +108,13 @@ export const PairingModal: React.FC<PairingModalProps> = ({
     }
   };
 
-  const handleCopy = () => {
+  const handleCopy = async () => {
     if (!generatedCode) return;
-    navigator.clipboard.writeText(generatedCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    const ok = await copyTextToClipboard(generatedCode);
+    if (ok) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   const handleJoin = async (e: React.FormEvent) => {

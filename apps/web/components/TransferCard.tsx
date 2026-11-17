@@ -11,6 +11,9 @@ import {
   Zap,
   Globe,
   CheckCircle2,
+  FolderOpen,
+  FolderArchive,
+  Download,
 } from 'lucide-react';
 
 export interface ActiveTransferState {
@@ -101,9 +104,22 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
           )}
 
           {isCompleted && (
-            <div className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-xs text-emerald-400 font-semibold shadow-sm">
-              <ShieldCheck className="w-4 h-4" />
-              <span>{isSender ? 'Streamed Directly' : 'Saved to Device'}</span>
+            <div className="flex items-center space-x-2">
+              {typeof window !== 'undefined' && Boolean((window as any).electronAPI?.openDownloadsFolder) ? (
+                <button
+                  onClick={() => (window as any).electronAPI.openDownloadsFolder()}
+                  className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-xs text-cyan-300 font-semibold shadow-sm transition-all"
+                  title="Open Downloads Folder"
+                >
+                  <FolderOpen className="w-3.5 h-3.5" />
+                  <span>Show in Folder</span>
+                </button>
+              ) : (
+                <div className="flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-emerald-500/15 border border-emerald-500/25 text-xs text-emerald-400 font-semibold shadow-sm">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>{isSender ? 'Streamed Directly' : 'Saved to Device'}</span>
+                </div>
+              )}
             </div>
           )}
 

@@ -85,6 +85,11 @@ export function ReceiverView({
           <span className="px-3 py-1 rounded-full bg-obsidian-base border border-white/[0.06] text-xs font-mono font-medium text-warm-bone">
             {formatBytes(offer.fileSize)}
           </span>
+          {offer.fileName.endsWith('.tar') && (
+            <span className="px-2.5 py-1 rounded-full bg-cyan-500/15 border border-cyan-500/25 text-xs font-semibold text-cyan-300">
+              📁 Folder Archive
+            </span>
+          )}
           {offer.transportMode === 'RELAY_STREAM' ? (
             <span className="px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/25 text-xs font-semibold text-violet-300">
               🌐 Relay Stream

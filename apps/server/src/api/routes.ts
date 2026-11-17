@@ -157,6 +157,62 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
     });
 
     if (!session) {
+      // Distributed LAN Pairing Resolver:
+      // If code was created on another laptop on the local network/hotspot,
+      // probe all discovered peers and sweep the subnet to find the host.
+      const peers = peerDiscovery.getDiscoveredPeers();
+      for (const peer of peers) {
+        if (peer.ip === diag.localIp && peer.port === config.port) continue;
+        try {
+          const remoteUrl = `http://${peer.ip}:${peer.port}/api/pairing/join`;
+          const resp = await fetch(remoteUrl, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, guestClientId, guestDeviceName }),
+            signal: AbortSignal.timeout(2000),
+          });
+          if (resp.ok) {
+            const data: any = await resp.json();
+            if (data.session) {
+              wsHub.broadcast({
+                type: 'pairing:matched',
+                payload: data.session,
+              });
+              return data;
+            }
+          }
+        } catch {
+          // Continue checking next peer
+        }
+      }
+
+      // If still not found, execute a fast subnet sweep to find any unannounced hosts
+      try {
+        const sweptPeers = await peerDiscovery.sweepSubnet();
+        for (const peer of sweptPeers) {
+          if (peer.ip === diag.localIp && peer.port === config.port) continue;
+          try {
+            const remoteUrl = `http://${peer.ip}:${peer.port}/api/pairing/join`;
+            const resp = await fetch(remoteUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code, guestClientId, guestDeviceName }),
+              signal: AbortSignal.timeout(2000),
+            });
+            if (resp.ok) {
+              const data: any = await resp.json();
+              if (data.session) {
+                wsHub.broadcast({
+                  type: 'pairing:matched',
+                  payload: data.session,
+                });
+                return data;
+              }
+            }
+          } catch {}
+        }
+      } catch {}
+
       return reply.status(404).send({ error: 'Invalid or expired pairing code' });
     }
 
@@ -165,6 +221,12 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
       session: pairingManager.toPublicSession(session),
       sharedSecret: session.sharedSecret,
     };
+  });
+
+  // On-demand LAN subnet sweep to bypass router/hotspot AP isolation
+  server.post('/api/discovery/sweep', async () => {
+    const peers = await peerDiscovery.sweepSubnet();
+    return { success: true, peers };
   });
 
   // Check pairing session status

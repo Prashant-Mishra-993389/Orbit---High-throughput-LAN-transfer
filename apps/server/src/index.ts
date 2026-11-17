@@ -96,9 +96,9 @@ export async function startServer(options: ServerOptions = {}): Promise<RunningS
   const addressInfo = server.server.address();
   const actualPort = typeof addressInfo === 'object' && addressInfo ? addressInfo.port : targetPort;
 
-  // Start LAN UDP Peer Discovery
+  // Start LAN UDP Peer Discovery & Subnet Sweeper with actual assigned port
   try {
-    peerDiscovery.start();
+    peerDiscovery.start(actualPort);
   } catch (err) {
     console.warn('UDP Peer discovery warning:', err);
   }

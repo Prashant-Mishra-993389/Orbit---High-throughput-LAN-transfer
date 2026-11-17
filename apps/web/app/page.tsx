@@ -12,7 +12,11 @@ import { OnboardingModal } from '../components/OnboardingModal';
 import { SettingsModal } from '../components/SettingsModal';
 import { InstantShareCard } from '../components/InstantShareCard';
 import { ReceiverView } from '../components/ReceiverView';
+import { TransferHistoryModal, CompletedTransferRecord } from '../components/TransferHistoryModal';
 import { playSuccessChime, playOfferChime } from '../lib/sound';
+import { copyTextToClipboard } from '../lib/clipboard';
+import { acquireWakeLock, releaseWakeLock } from '../lib/wakeLock';
+import { processDroppedData } from '../lib/folder';
 import {
   createTransferOffer,
   streamFileToBridge,
@@ -70,6 +74,8 @@ export default function Home() {
   const [copiedLink, setCopiedLink] = useState(false);
   const [showNetworkQr, setShowNetworkQr] = useState(false);
   const [isDropOver, setIsDropOver] = useState(false);
+  const [completedRecords, setCompletedRecords] = useState<CompletedTransferRecord[]>([]);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
   // Drop-First instant staged share: when sender drops a file, an offer is pre-created immediately
   const [stagedShare, setStagedShare] = useState<{
@@ -105,11 +111,13 @@ export default function Home() {
       ? `${activeSharingUrl}${activeSharingUrl.includes('?') ? '&' : '?'}pairHostId=${session.clientId}&pairHostName=${encodeURIComponent(session.clientName)}`
       : activeSharingUrl;
 
-  const handleCopyShareLink = () => {
+  const handleCopyShareLink = async () => {
     const url = directPairingUrl || activeSharingUrl || (typeof window !== 'undefined' ? window.location.href : '');
-    navigator.clipboard.writeText(url);
-    setCopiedLink(true);
-    setTimeout(() => setCopiedLink(false), 2500);
+    const ok = await copyTextToClipboard(url);
+    if (ok) {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2500);
+    }
   };
 
   // Auto-pair when exactly 1 other peer is discovered on the local network
@@ -126,12 +134,59 @@ export default function Home() {
     }
   }, [incomingOffer]);
 
-  // Audio cue on transfer completion
+  // Mobile Screen WakeLock management during active transfers
+  useEffect(() => {
+    if (activeTransfer?.status === 'TRANSFERRING') {
+      acquireWakeLock();
+    } else if (
+      activeTransfer?.status === 'COMPLETED' ||
+      activeTransfer?.status === 'FAILED' ||
+      activeTransfer?.status === 'CANCELLED' ||
+      !activeTransfer
+    ) {
+      releaseWakeLock();
+    }
+  }, [activeTransfer?.status]);
+
+  // Audio cue, History logging & OS Notification on transfer completion
   useEffect(() => {
     if (activeTransfer?.status === 'COMPLETED') {
       playSuccessChime();
+
+      // Record in transfer history
+      setCompletedRecords((prev) => {
+        const exists = prev.some((r) => r.transferId === activeTransfer.transferId);
+        if (exists) return prev;
+        return [
+          {
+            transferId: activeTransfer.transferId,
+            role: activeTransfer.role,
+            fileName: activeTransfer.fileName,
+            fileSize: activeTransfer.fileSize,
+            peerName: activeTransfer.peerName,
+            completedAt: Date.now(),
+            averageSpeed: activeTransfer.averageSpeed || activeTransfer.currentSpeed,
+            finalHash: activeTransfer.finalHash,
+            isFolder: activeTransfer.fileName.endsWith('.tar'),
+          },
+          ...prev,
+        ];
+      });
+
+      // Show system desktop notification
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'granted') {
+          try {
+            new Notification('Orbit Transfer Complete', {
+              body: `${activeTransfer.fileName} transferred successfully.`,
+            });
+          } catch {}
+        } else if (Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      }
     }
-  }, [activeTransfer?.status]);
+  }, [activeTransfer?.status, activeTransfer?.transferId]);
 
   // Instant QR Code Auto-Connect: Connects guest and host automatically upon scanning
   useEffect(() => {
@@ -259,11 +314,21 @@ export default function Home() {
   }, []);
 
   const handleDrop = useCallback(
-    (e: React.DragEvent) => {
+    async (e: React.DragEvent) => {
       e.preventDefault();
       setIsDropOver(false);
-      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-        handleDropFirstFile(e.dataTransfer.files[0]);
+      if (e.dataTransfer) {
+        try {
+          const result = await processDroppedData(e.dataTransfer);
+          if (result && result.file) {
+            handleDropFirstFile(result.file);
+          }
+        } catch (err) {
+          console.error('Error processing dropped data:', err);
+          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+            handleDropFirstFile(e.dataTransfer.files[0]);
+          }
+        }
       }
     },
     [handleDropFirstFile]
@@ -509,7 +574,11 @@ export default function Home() {
         diagnostics={diagnostics}
         onOpenBenchmark={() => setIsDiagnosticsOpen(true)}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        onRefresh={refreshState}
+        onOpenHistory={() => setIsHistoryOpen(true)}
+        historyCount={completedRecords.length}
+        onRefresh={() => {
+          refreshState();
+        }}
       />
 
       <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col justify-center">
@@ -626,6 +695,14 @@ export default function Home() {
           />
         )}
       </main>
+
+      {/* Transfer History Modal */}
+      <TransferHistoryModal
+        isOpen={isHistoryOpen}
+        onClose={() => setIsHistoryOpen(false)}
+        records={completedRecords}
+        onClearHistory={() => setCompletedRecords([])}
+      />
 
       {/* Recipient Incoming Transfer Modal (Sender NEVER sees this) */}
       <IncomingTransferModal

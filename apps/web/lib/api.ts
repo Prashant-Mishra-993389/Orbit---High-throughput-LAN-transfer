@@ -68,6 +68,19 @@ export async function fetchDevices(): Promise<DeviceInfo[]> {
   return res.json();
 }
 
+/**
+ * Triggers a fast parallel subnet sweep on the server to discover
+ * peers on mobile hotspots where UDP broadcasts are blocked.
+ */
+export async function triggerSubnetSweep(): Promise<DeviceInfo[]> {
+  const res = await fetch(`${getServerBaseUrl()}/api/discovery/sweep`, {
+    method: 'POST',
+  });
+  if (!res.ok) throw new Error('Failed to sweep subnet');
+  const data = await res.json();
+  return data.peers || [];
+}
+
 export async function testPeerConnectivity(ip: string, port = 37821): Promise<{
   directLanAvailable: boolean;
   status: 'DIRECT_LAN_AVAILABLE' | 'DIRECT_LAN_BLOCKED';

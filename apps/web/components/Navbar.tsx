@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { NetworkDiagnostics } from '@sharelan/protocol';
 import { ClientSession, setClientName } from '../lib/session';
-import { Wifi, WifiOff, Activity, Laptop, Edit2, Check, Settings } from 'lucide-react';
+import { Wifi, WifiOff, Activity, Laptop, Edit2, Check, Settings, Clock } from 'lucide-react';
 
 interface NavbarProps {
   session: ClientSession;
@@ -9,6 +9,8 @@ interface NavbarProps {
   diagnostics: NetworkDiagnostics | null;
   onOpenBenchmark: () => void;
   onOpenSettings?: () => void;
+  onOpenHistory?: () => void;
+  historyCount?: number;
   onRefresh: () => void;
 }
 
@@ -18,6 +20,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   diagnostics,
   onOpenBenchmark,
   onOpenSettings,
+  onOpenHistory,
+  historyCount = 0,
 }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(session.clientName);
@@ -91,6 +95,22 @@ export const Navbar: React.FC<NavbarProps> = ({
               </div>
             )}
           </div>
+
+          {/* Transfer History Button */}
+          {onOpenHistory && (
+            <button
+              onClick={onOpenHistory}
+              className="relative p-2 rounded-xl bg-obsidian-card hover:bg-obsidian-hover border border-white/[0.08] text-warm-sand hover:text-warm-bone transition-colors"
+              title="Transfer History"
+            >
+              <Clock className="w-4 h-4 text-cyan-400" />
+              {historyCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-500 text-[9px] font-bold text-slate-950 flex items-center justify-center shadow-sm">
+                  {historyCount}
+                </span>
+              )}
+            </button>
+          )}
 
           {/* Network diagnostics button */}
           <button
