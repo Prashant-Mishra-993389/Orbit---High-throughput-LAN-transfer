@@ -97,25 +97,16 @@ export function InstantShareCard({
         </div>
       </div>
 
-      {/* QR Code Presentation */}
-      <QrCodeCard
-        url={directOfferUrl}
-        title="Instant Mobile / Laptop Download"
-        subtitle="Point any phone or laptop camera at this screen to start streaming"
-        size={220}
-        showCopy={true}
-      />
-
-      {/* Direct Send to Discovered Nearby Peers */}
+      {/* Direct Send to Discovered Nearby Laptops (PRIMARY FOR LAPTOPS) */}
       {availableDevices.length > 0 && (
-        <div className="p-4 rounded-3xl bg-obsidian-card/90 border border-white/[0.08] space-y-3 shadow-lg">
+        <div className="p-5 rounded-3xl bg-obsidian-card/95 border border-cyan-500/20 space-y-3.5 shadow-xl">
           <div className="flex items-center justify-between px-1">
-            <div className="flex items-center space-x-1.5 text-xs font-bold text-warm-bone uppercase tracking-wider">
-              <Zap className="w-3.5 h-3.5 text-amber-400" />
-              <span>Send Directly to Nearby Device</span>
+            <div className="flex items-center space-x-2 text-xs font-bold text-warm-bone uppercase tracking-wider">
+              <Zap className="w-4 h-4 text-cyan-400" />
+              <span>Beam Directly to Nearby Device (1-Click)</span>
             </div>
-            <span className="text-[11px] text-warm-stone font-mono">
-              {availableDevices.length} available
+            <span className="text-[11px] text-cyan-300 font-mono">
+              {availableDevices.length} online
             </span>
           </div>
 
@@ -126,29 +117,29 @@ export function InstantShareCard({
                 <button
                   key={device.deviceId}
                   onClick={() => onSendToDevice(device)}
-                  className={`p-3 rounded-2xl border text-left transition-all duration-200 flex items-center justify-between group ${
+                  className={`p-3.5 rounded-2xl border text-left transition-all duration-200 flex items-center justify-between group active:scale-[0.98] ${
                     isPaired
-                      ? 'bg-cyan-500/10 border-cyan-500/40 hover:bg-cyan-500/20'
-                      : 'bg-surface-200/80 border-white/5 hover:border-cyan-500/30 hover:bg-surface-200'
+                      ? 'bg-cyan-500/15 border-cyan-500/40 hover:bg-cyan-500/25 shadow-md'
+                      : 'bg-obsidian-hover/70 border-white/[0.06] hover:border-cyan-500/40 hover:bg-obsidian-hover'
                   }`}
                 >
                   <div className="flex items-center space-x-2.5 min-w-0 pr-2">
-                    <div className="w-8 h-8 rounded-xl bg-white/5 flex items-center justify-center text-cyan-400 flex-shrink-0 group-hover:scale-105 transition-transform">
+                    <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 flex-shrink-0 group-hover:scale-105 transition-transform">
                       <Laptop className="w-4 h-4" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-semibold text-white truncate">
+                      <p className="text-xs font-bold text-warm-bone truncate group-hover:text-white">
                         {device.deviceName}
                       </p>
-                      <p className="text-[10px] font-mono text-slate-400">
+                      <p className="text-[10px] font-mono text-warm-sand">
                         {device.ip}
                       </p>
                     </div>
                   </div>
 
-                  <span className="px-2.5 py-1 rounded-xl bg-cyan-500/20 text-cyan-300 text-[11px] font-semibold flex items-center space-x-1 group-hover:bg-cyan-500 group-hover:text-white transition-all flex-shrink-0">
-                    <Send className="w-3 h-3" />
-                    <span>Send</span>
+                  <span className="px-3 py-1.5 rounded-xl bg-cyan-500/20 text-cyan-300 text-xs font-bold flex items-center space-x-1.5 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-all flex-shrink-0 shadow-sm">
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Beam</span>
                   </span>
                 </button>
               );
@@ -156,6 +147,15 @@ export function InstantShareCard({
           </div>
         </div>
       )}
+
+      {/* QR Code Presentation (Secondary for Phones) */}
+      <QrCodeCard
+        url={directOfferUrl}
+        title="Mobile Phone Link"
+        subtitle="Point your phone camera to download directly into phone browser"
+        size={200}
+        showCopy={true}
+      />
     </div>
   );
 }

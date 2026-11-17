@@ -88,12 +88,12 @@ async function bootstrapApp() {
     await shell.openPath(downloadsPath);
   });
 
-  // 3. Create Main Browser Window
+  // 3. Create Main Browser Window (Expansive Desktop Aspect Ratio)
   mainWindow = new BrowserWindow({
-    width: 540,
-    height: 780,
-    minWidth: 440,
-    minHeight: 620,
+    width: 860,
+    height: 620,
+    minWidth: 600,
+    minHeight: 520,
     title: 'Orbit',
     backgroundColor: '#030712',
     show: false,

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useRef, useState } from 'react';
-import { DeviceInfo } from '@sharelan/protocol';
+import { DeviceInfo, NetworkDiagnostics } from '@sharelan/protocol';
 import {
   UploadCloud,
   Laptop,
@@ -15,8 +15,11 @@ import {
   X,
   FilePlus2,
   FolderPlus,
+  Radio,
+  RefreshCw,
 } from 'lucide-react';
 import { packageFilesIntoTar, ScannedFile } from '../lib/folder';
+import { isHotspotSubnet } from '../lib/network';
 
 interface FluidCanvasProps {
   clientName: string;
@@ -38,6 +41,8 @@ interface FluidCanvasProps {
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: (e: React.DragEvent) => void;
   onDrop: (e: React.DragEvent) => void;
+  diagnostics?: NetworkDiagnostics | null;
+  onSweepPeers?: () => void;
 }
 
 export function FluidCanvas({
@@ -60,15 +65,29 @@ export function FluidCanvas({
   onDragOver,
   onDragLeave,
   onDrop,
+  diagnostics,
+  onSweepPeers,
 }: FluidCanvasProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [hoveredDeviceId, setHoveredDeviceId] = useState<string | null>(null);
+  const [isProbing, setIsProbing] = useState(false);
+
+  // Check if current network is a mobile phone hotspot
+  const isHotspot = isHotspotSubnet(diagnostics?.localIp);
 
   // Exclude self from nearby devices list
   const activeDevices = nearbyDevices.filter(
     (d) => d.deviceName !== clientName
   );
+
+  const handleManualProbe = async () => {
+    if (onSweepPeers) {
+      setIsProbing(true);
+      onSweepPeers();
+      setTimeout(() => setIsProbing(false), 2000);
+    }
+  };
 
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
@@ -138,6 +157,8 @@ export function FluidCanvas({
             <span className="text-xs font-medium text-emerald-300">
               Connected to <strong className="text-warm-bone font-semibold">{pairedDevice.deviceName}</strong>
             </span>
+            <span className="text-white/20">•</span>
+            <span className="text-[11px] text-emerald-400/90 font-mono">Ready to Beam</span>
             <button
               onClick={() => onSelectDevice(null)}
               className="p-1 rounded-full text-warm-sand hover:text-rose-400 hover:bg-white/10 transition-colors"
@@ -149,17 +170,19 @@ export function FluidCanvas({
         ) : (
           <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-obsidian-card/70 border border-white/[0.06] backdrop-blur-md shadow-sm">
             <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
             </span>
-            <span className="text-xs text-warm-sand font-medium">
-              Local Wi-Fi Active
+            <span className="text-xs text-warm-bone font-medium">
+              {isHotspot ? '⚡ Phone Hotspot Direct Beam' : 'Local Wi-Fi Network'}
             </span>
             <span className="text-white/20">•</span>
-            <span className="text-xs text-warm-sand/80">
+            <span className="text-xs text-warm-sand/80 font-mono">
               {activeDevices.length > 0
-                ? `${activeDevices.length} ${activeDevices.length === 1 ? 'peer' : 'peers'} nearby`
-                : 'Ready to connect'}
+                ? `${activeDevices.length} ${activeDevices.length === 1 ? 'laptop' : 'laptops'} online`
+                : isHotspot
+                ? '~85+ MB/s'
+                : 'Searching peers'}
             </span>
           </div>
         )}
@@ -169,77 +192,108 @@ export function FluidCanvas({
       {/* 2. CENTER STAGE: MAGNETIC PEERS & THE DROP PORTAL             */}
       {/* ============================================================ */}
       <div className="w-full flex-1 flex flex-col items-center justify-center my-6 space-y-6 z-10">
-        {/* Discovered Peer Constellation (Tactile Rounded Pebble Cards) */}
-        {activeDevices.length > 0 && (
-          <div className="flex flex-wrap items-center justify-center gap-2.5 max-w-md mx-auto animate-fade-in px-4">
-            {activeDevices.map((device) => {
-              const isSelected = pairedDevice?.deviceId === device.deviceId;
-              const isHovered = hoveredDeviceId === device.deviceId;
-              const isMobile =
-                device.os?.toLowerCase().includes('android') ||
-                device.os?.toLowerCase().includes('ios') ||
-                device.deviceName?.toLowerCase().includes('phone');
+        {/* Hotspot Radar Scanner (When 0 peers detected) */}
+        {activeDevices.length === 0 ? (
+          <div className="flex flex-col items-center justify-center space-y-2 py-2 px-4 text-center animate-fade-in max-w-sm mx-auto">
+            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-xs text-cyan-300">
+              <Radio className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+              <span>Scanning Hotspot for Nearby Laptops...</span>
+            </div>
+            <p className="text-[11px] text-warm-sand/70">
+              Open Orbit on the other laptop to pair automatically
+            </p>
+            {onSweepPeers && (
+              <button
+                type="button"
+                onClick={handleManualProbe}
+                disabled={isProbing}
+                className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-xl bg-white/5 hover:bg-white/10 text-[11px] font-medium text-warm-sand hover:text-white transition-all border border-white/5 active:scale-95"
+              >
+                <RefreshCw className={`w-3 h-3 text-cyan-400 ${isProbing ? 'animate-spin' : ''}`} />
+                <span>{isProbing ? 'Scanning 254 IPs...' : 'Probe Hotspot Now'}</span>
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center space-y-2 animate-fade-in w-full">
+            <span className="text-[11px] uppercase font-bold tracking-wider text-cyan-400">
+              Discovered Devices ({activeDevices.length}) — Click to Beam
+            </span>
+            <div className="flex flex-wrap items-center justify-center gap-2.5 max-w-lg mx-auto px-4">
+              {activeDevices.map((device) => {
+                const isSelected = pairedDevice?.deviceId === device.deviceId;
+                const isHovered = hoveredDeviceId === device.deviceId;
+                const isMobile =
+                  device.os?.toLowerCase().includes('android') ||
+                  device.os?.toLowerCase().includes('ios') ||
+                  device.deviceName?.toLowerCase().includes('phone');
 
-              return (
-                <button
-                  key={device.deviceId}
-                  type="button"
-                  onClick={() => onSelectDevice(isSelected ? null : device)}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setHoveredDeviceId(device.deviceId);
-                  }}
-                  onDragLeave={(e) => {
-                    e.preventDefault();
-                    setHoveredDeviceId(null);
-                  }}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setHoveredDeviceId(null);
-                    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                      if (onDropOnDevice) {
-                        onDropOnDevice(device, e.dataTransfer.files[0]);
-                      } else {
-                        onSelectDevice(device);
-                        onFileSelected(e.dataTransfer.files[0]);
+                return (
+                  <button
+                    key={device.deviceId}
+                    type="button"
+                    onClick={() => onSelectDevice(isSelected ? null : device)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setHoveredDeviceId(device.deviceId);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      setHoveredDeviceId(null);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setHoveredDeviceId(null);
+                      if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                        if (onDropOnDevice) {
+                          onDropOnDevice(device, e.dataTransfer.files[0]);
+                        } else {
+                          onSelectDevice(device);
+                          onFileSelected(e.dataTransfer.files[0]);
+                        }
                       }
-                    }
-                  }}
-                  className={`group relative px-3.5 py-2 rounded-2xl border transition-all duration-200 flex items-center space-x-2.5 active:scale-95 ${
-                    isHovered
-                      ? 'scale-105 bg-emerald-500/20 border-emerald-400 ring-4 ring-emerald-500/20 shadow-xl shadow-emerald-500/20'
-                      : isSelected
-                      ? 'bg-emerald-500/15 border-emerald-500/35 text-warm-bone shadow-md'
-                      : 'bg-obsidian-card/80 hover:bg-obsidian-hover border-white/[0.08] hover:border-white/[0.18] text-warm-sand hover:text-warm-bone shadow-sm'
-                  }`}
-                  title={isHovered ? `Drop to send to ${device.deviceName}` : `Beam to ${device.deviceName}`}
-                >
-                  <div
-                    className={`w-7 h-7 rounded-xl flex items-center justify-center transition-colors ${
-                      isSelected || isHovered
-                        ? 'bg-emerald-500/20 text-emerald-300'
-                        : 'bg-white/5 text-warm-sand group-hover:text-warm-bone'
+                    }}
+                    className={`group relative px-4 py-2 rounded-2xl border transition-all duration-200 flex items-center space-x-2.5 active:scale-95 ${
+                      isHovered
+                        ? 'scale-105 bg-emerald-500/20 border-emerald-400 ring-4 ring-emerald-500/20 shadow-xl shadow-emerald-500/20'
+                        : isSelected
+                        ? 'bg-emerald-500/15 border-emerald-500/35 text-warm-bone shadow-md ring-2 ring-emerald-500/20'
+                        : 'bg-obsidian-card/80 hover:bg-obsidian-hover border-white/[0.08] hover:border-white/[0.18] text-warm-sand hover:text-warm-bone shadow-sm'
                     }`}
+                    title={isHovered ? `Drop to send to ${device.deviceName}` : `Beam to ${device.deviceName}`}
                   >
-                    {isMobile ? (
-                      <Smartphone className="w-3.5 h-3.5" />
-                    ) : (
-                      <Laptop className="w-3.5 h-3.5" />
+                    <div
+                      className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                        isSelected || isHovered
+                          ? 'bg-emerald-500/20 text-emerald-300'
+                          : 'bg-white/5 text-warm-sand group-hover:text-warm-bone'
+                      }`}
+                    >
+                      {isMobile ? (
+                        <Smartphone className="w-4 h-4" />
+                      ) : (
+                        <Laptop className="w-4 h-4" />
+                      )}
+                    </div>
+
+                    <div className="text-left">
+                      <div className="text-xs font-semibold tracking-tight truncate max-w-[120px] text-warm-bone">
+                        {device.deviceName}
+                      </div>
+                      <div className="text-[10px] text-warm-sand/70 font-mono">
+                        {device.ip || 'LAN Peer'}
+                      </div>
+                    </div>
+
+                    {isSelected && (
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse ml-1" />
                     )}
-                  </div>
-
-                  <span className="text-xs font-semibold tracking-tight truncate max-w-[120px]">
-                    {device.deviceName}
-                  </span>
-
-                  {isSelected && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  )}
-                </button>
-              );
-            })}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
@@ -285,12 +339,20 @@ export function FluidCanvas({
 
           {/* Headline Typography */}
           <h2 className="text-lg sm:text-xl font-bold text-warm-bone tracking-tight mb-1 group-hover:text-white transition-colors">
-            {isDragOver ? 'Release to Beam' : 'Drop to Beam'}
-          </h2>
-          <p className="text-xs text-warm-sand max-w-[200px] leading-relaxed mb-4 group-hover:text-warm-bone/90">
             {isDragOver
-              ? 'Zero-copy direct stream'
-              : 'or click to browse from device'}
+              ? pairedDevice
+                ? `Release to Beam to ${pairedDevice.deviceName}`
+                : 'Release to Beam'
+              : pairedDevice
+              ? `Beam to ${pairedDevice.deviceName}`
+              : isHotspot
+              ? 'Drop to Beam on Hotspot'
+              : 'Drop to Beam'}
+          </h2>
+          <p className="text-xs text-warm-sand max-w-[220px] leading-relaxed mb-4 group-hover:text-warm-bone/90">
+            {pairedDevice
+              ? 'Files stream directly with zero internet data'
+              : 'Direct-to-disk streaming • 85+ MB/s LAN throughput'}
           </p>
 
           {/* Interactive Browse Action Buttons */}

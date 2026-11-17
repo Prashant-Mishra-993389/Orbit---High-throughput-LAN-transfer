@@ -59,6 +59,11 @@ export const Navbar: React.FC<NavbarProps> = ({
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                 )}
               </span>
+              {diagnostics?.localIp && diagnostics.localIp !== '127.0.0.1' && (
+                <span className="hidden sm:inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/20">
+                  <span>{diagnostics.localIp}</span>
+                </span>
+              )}
             </div>
           </div>
         </div>

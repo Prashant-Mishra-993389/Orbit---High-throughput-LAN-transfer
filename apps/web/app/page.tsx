@@ -5,7 +5,6 @@ import { useShareLanWebSocket } from '../hooks/useShareLanWebSocket';
 import { Navbar } from '../components/Navbar';
 import { FluidCanvas } from '../components/FluidCanvas';
 import { TransferCard, ActiveTransferState } from '../components/TransferCard';
-import { IncomingTransferModal } from '../components/IncomingTransferModal';
 import { NetworkDiagnosticsModal } from '../components/NetworkDiagnosticsModal';
 import { PairingModal } from '../components/PairingModal';
 import { OnboardingModal } from '../components/OnboardingModal';
@@ -28,6 +27,7 @@ import {
   getServerBaseUrl,
   joinPairingSession,
   autoConnectPairing,
+  triggerSubnetSweep,
 } from '../lib/api';
 import { probeAndSelectTransport } from '../lib/connectivity';
 import { DeviceInfo, TransferOffer, TransportMode } from '@sharelan/protocol';
@@ -259,19 +259,26 @@ export default function Home() {
   }, [incomingOffer, activeTransfer]);
 
   /**
-   * DROP-FIRST, SHARE-INSTANT WORKFLOW:
-   * The moment user drops/picks a file, we create the transfer offer on the server
-   * and show the InstantShareCard with dynamic QR code & 1-click peer targets!
+   * DIRECT AIRDROP-STYLE STREAM WORKFLOW:
+   * If a peer device is already connected or found, dropping/picking a file
+   * sends the offer directly to that laptop with ZERO interstitial clicks!
+   * If no peer is connected yet, shows InstantShareCard for discovery.
    */
   const handleDropFirstFile = useCallback(
     async (file: File) => {
       setIsSending(true);
 
       try {
+        const targetPeer =
+          pairedDevice ||
+          (devices.length === 1 && devices[0].deviceId !== session.clientId
+            ? devices[0]
+            : null);
+
         let transportMode: TransportMode = 'DIRECT_LAN';
 
-        if (pairedDevice) {
-          const probe = await probeAndSelectTransport(pairedDevice.ip, pairedDevice.port);
+        if (targetPeer) {
+          const probe = await probeAndSelectTransport(targetPeer.ip, targetPeer.port);
           transportMode = probe.selectedTransport;
         }
 
@@ -281,8 +288,8 @@ export default function Home() {
           mimeType: file.type || 'application/octet-stream',
           senderClientId: session.clientId,
           senderDeviceName: session.clientName,
-          targetDeviceId: pairedDevice?.deviceId,
-          targetClientId: pairedDevice?.deviceId,
+          targetDeviceId: targetPeer?.deviceId,
+          targetClientId: targetPeer?.deviceId,
           transportMode,
         });
 
@@ -293,14 +300,33 @@ export default function Home() {
           relaySessionId: offer.relaySessionId || offer.transferId,
         };
 
-        setStagedShare({ file, offer });
+        if (targetPeer) {
+          // Direct 1-Click Beam: Immediately transition to active transfer state
+          setStagedShare(null);
+          setActiveTransfer({
+            transferId: offer.transferId,
+            role: 'sender',
+            fileName: file.name,
+            fileSize: file.size,
+            peerName: targetPeer.deviceName,
+            status: 'OFFERED',
+            transportMode,
+            bytesTransferred: 0,
+            percentage: 0,
+            currentSpeed: 0,
+            averageSpeed: 0,
+            etaSeconds: 0,
+          });
+        } else {
+          setStagedShare({ file, offer });
+        }
       } catch (err: unknown) {
         console.error('Instant share offer error:', err);
       } finally {
         setIsSending(false);
       }
     },
-    [pairedDevice, session]
+    [pairedDevice, devices, session]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -581,7 +607,7 @@ export default function Home() {
         }}
       />
 
-      <main className="flex-1 max-w-2xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col justify-center">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col justify-center">
         {/* ============================================================ */}
         {/* VIEW 1: ACTIVE LIVE TRANSFER IN PROGRESS OR COMPLETED        */}
         {/* ============================================================ */}
@@ -657,6 +683,11 @@ export default function Home() {
             pairedDevice={pairedDevice}
             onSendToDevice={(device) => {
               setPairedDevice(device);
+              if (stagedShare) {
+                const fileToSend = stagedShare.file;
+                setStagedShare(null);
+                handleDropFirstFile(fileToSend);
+              }
             }}
             onCancel={() => {
               setStagedShare(null);
@@ -692,6 +723,8 @@ export default function Home() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
+            diagnostics={diagnostics}
+            onSweepPeers={() => triggerSubnetSweep().catch(() => {})}
           />
         )}
       </main>
@@ -702,13 +735,6 @@ export default function Home() {
         onClose={() => setIsHistoryOpen(false)}
         records={completedRecords}
         onClearHistory={() => setCompletedRecords([])}
-      />
-
-      {/* Recipient Incoming Transfer Modal (Sender NEVER sees this) */}
-      <IncomingTransferModal
-        offer={activeTransfer?.role === 'sender' ? null : incomingOffer}
-        onAccept={handleAcceptOffer}
-        onReject={handleRejectOffer}
       />
 
       {/* 6-Digit Code Pairing Modal */}
