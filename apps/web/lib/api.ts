@@ -117,17 +117,35 @@ export async function createTransferOffer(params: {
   senderDeviceName: string;
   targetDeviceId?: string;
   targetClientId?: string;
+  targetHost?: string;
   transportMode?: TransportMode;
   relaySessionId?: string;
   e2eeSecret?: string;
 }): Promise<TransferOffer> {
-  const res = await fetch(`${getServerBaseUrl()}/api/transfers/offer`, {
+  const localBase = getServerBaseUrl();
+  const res = await fetch(`${localBase}/api/transfers/offer`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(params),
   });
   if (!res.ok) throw new Error('Failed to create transfer offer');
-  return res.json();
+  const offer: TransferOffer = await res.json();
+
+  // If a specific remote peer is targeted on the network, forward the offer to their server directly
+  if (params.targetHost && params.targetHost !== localBase) {
+    try {
+      await fetch(`${params.targetHost}/api/transfers/offer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(offer),
+        signal: AbortSignal.timeout(3000),
+      });
+    } catch (err) {
+      console.warn('Could not forward offer directly to peer server:', err);
+    }
+  }
+
+  return offer;
 }
 
 /**
@@ -135,13 +153,29 @@ export async function createTransferOffer(params: {
  */
 export async function acceptTransferOffer(
   transferId: string,
-  receiverInfo?: { receiverClientId?: string; receiverDeviceName?: string; receiverDeviceId?: string }
+  receiverInfo?: { receiverClientId?: string; receiverDeviceName?: string; receiverDeviceId?: string },
+  targetHost?: string
 ): Promise<{ success: boolean }> {
-  const res = await fetch(`${getServerBaseUrl()}/api/transfers/${transferId}/accept`, {
+  const localBase = getServerBaseUrl();
+  const host = targetHost || localBase;
+
+  const res = await fetch(`${host}/api/transfers/${transferId}/accept`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(receiverInfo || {}),
   });
+
+  if (targetHost && targetHost !== localBase) {
+    try {
+      await fetch(`${localBase}/api/transfers/${transferId}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(receiverInfo || {}),
+        signal: AbortSignal.timeout(1500),
+      });
+    } catch {}
+  }
+
   if (!res.ok) throw new Error('Failed to accept transfer offer');
   return res.json();
 }
@@ -151,13 +185,29 @@ export async function acceptTransferOffer(
  */
 export async function rejectTransferOffer(
   transferId: string,
-  reason?: string
+  reason?: string,
+  targetHost?: string
 ): Promise<{ success: boolean }> {
-  const res = await fetch(`${getServerBaseUrl()}/api/transfers/${transferId}/reject`, {
+  const localBase = getServerBaseUrl();
+  const host = targetHost || localBase;
+
+  const res = await fetch(`${host}/api/transfers/${transferId}/reject`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),
   });
+
+  if (targetHost && targetHost !== localBase) {
+    try {
+      await fetch(`${localBase}/api/transfers/${transferId}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+        signal: AbortSignal.timeout(1500),
+      });
+    } catch {}
+  }
+
   if (!res.ok) throw new Error('Failed to reject transfer offer');
   return res.json();
 }
@@ -417,11 +467,24 @@ export async function consumeIncomingStream(
 }
 
 
-export async function cancelTransfer(transferId: string): Promise<void> {
-  const res = await fetch(`${getServerBaseUrl()}/api/transfers/${transferId}`, {
+export async function cancelTransfer(transferId: string, targetHost?: string): Promise<void> {
+  const localBase = getServerBaseUrl();
+  const host = targetHost || localBase;
+
+  const res = await fetch(`${host}/api/transfers/${transferId}`, {
     method: 'DELETE',
   });
-  if (!res.ok) throw new Error('Failed to cancel transfer');
+
+  if (targetHost && targetHost !== localBase) {
+    try {
+      await fetch(`${localBase}/api/transfers/${transferId}`, {
+        method: 'DELETE',
+        signal: AbortSignal.timeout(1500),
+      });
+    } catch {}
+  }
+
+  if (!res.ok && res.status !== 404) throw new Error('Failed to cancel transfer');
 }
 
 /**

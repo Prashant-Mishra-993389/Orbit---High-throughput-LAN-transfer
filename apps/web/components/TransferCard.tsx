@@ -14,6 +14,10 @@ import {
   FolderOpen,
   FolderArchive,
   Download,
+  RotateCcw,
+  X,
+  AlertCircle,
+  Ban,
 } from 'lucide-react';
 
 export interface ActiveTransferState {
@@ -37,9 +41,16 @@ export interface ActiveTransferState {
 interface TransferCardProps {
   transfer: ActiveTransferState;
   onCancel: (id: string) => void;
+  onDismiss?: () => void;
+  onRetry?: () => void;
 }
 
-export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }) => {
+export const TransferCard: React.FC<TransferCardProps> = ({
+  transfer,
+  onCancel,
+  onDismiss,
+  onRetry,
+}) => {
   const isSender = transfer.role === 'sender';
   const isWaiting =
     transfer.status === 'OFFERED' ||
@@ -49,6 +60,9 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
   const isVerifying = transfer.status === 'VERIFYING';
   const isCompleted = transfer.status === 'COMPLETED';
   const isFailed = transfer.status === 'FAILED';
+  const isCancelled = transfer.status === 'CANCELLED';
+  const isRejected = transfer.status === 'REJECTED';
+  const isTerminalError = isFailed || isCancelled || isRejected;
   const isRelay = transfer.transportMode === 'RELAY_STREAM';
 
   return (
@@ -58,12 +72,20 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
         <div className="flex items-center space-x-3 min-w-0">
           <div
             className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 border ${
-              isSender
+              isTerminalError
+                ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                : isSender
                 ? 'bg-white/[0.04] text-zinc-200 border-white/[0.08]'
                 : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
             }`}
           >
-            {isSender ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownLeft className="w-4 h-4" />}
+            {isTerminalError ? (
+              <XCircle className="w-4 h-4" />
+            ) : isSender ? (
+              <ArrowUpRight className="w-4 h-4" />
+            ) : (
+              <ArrowDownLeft className="w-4 h-4" />
+            )}
           </div>
 
           <div className="min-w-0">
@@ -100,6 +122,16 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
               title="Cancel transfer"
             >
               <XCircle className="w-4 h-4" />
+            </button>
+          )}
+
+          {isTerminalError && onDismiss && (
+            <button
+              onClick={onDismiss}
+              className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-white/[0.08] transition-colors"
+              title="Dismiss"
+            >
+              <X className="w-4 h-4" />
             </button>
           )}
 
@@ -141,7 +173,7 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
             className={`h-full transition-all duration-150 rounded-full ${
               isCompleted
                 ? 'bg-emerald-400'
-                : isFailed
+                : isTerminalError
                 ? 'bg-rose-500'
                 : 'bg-white'
             }`}
@@ -157,6 +189,14 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
             {transfer.status === 'OFFERED'
               ? 'Waiting for recipient...'
               : 'Connecting...'}
+          </span>
+        ) : isTerminalError ? (
+          <span className="text-rose-400 font-medium">
+            {isCancelled
+              ? 'Transfer Cancelled'
+              : isRejected
+              ? 'Declined by recipient'
+              : 'Transfer Interrupted'}
           </span>
         ) : (
           <>
@@ -188,15 +228,51 @@ export const TransferCard: React.FC<TransferCardProps> = ({ transfer, onCancel }
         )}
       </div>
 
-      {isFailed && (
-        <div className="mt-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 space-y-1 text-xs animate-fade-in">
+      {/* Terminal State Alert & Action CTAs */}
+      {isTerminalError && (
+        <div className="p-3.5 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-300 space-y-2.5 text-xs animate-fade-in">
           <div className="flex items-center space-x-1.5 font-medium text-rose-400">
-            <XCircle className="w-3.5 h-3.5 flex-shrink-0" />
-            <span>Transfer Failed</span>
+            <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <span>
+              {isCancelled
+                ? 'Transfer was cancelled'
+                : isRejected
+                ? 'Recipient declined the transfer'
+                : 'Transfer Interrupted'}
+            </span>
           </div>
-          <p className="font-mono text-[11px] text-rose-200/80 leading-tight">
-            {transfer.error || 'Connection interrupted or peer disconnected.'}
+          <p className="font-mono text-[11px] text-rose-200/80 leading-relaxed">
+            {transfer.error ||
+              (isCancelled
+                ? 'The transfer was aborted mid-way. No corrupt files were left behind.'
+                : isRejected
+                ? 'The other device declined the file transfer request.'
+                : 'Connection interrupted or peer disconnected.')}
           </p>
+
+          {/* Action buttons so user is NEVER stuck */}
+          <div className="flex items-center space-x-2 pt-1">
+            {onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="px-3 py-1.5 rounded-md bg-white text-zinc-950 font-semibold text-xs flex items-center space-x-1.5 hover:bg-zinc-200 transition-all shadow-sm active:scale-95"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Try Again</span>
+              </button>
+            )}
+
+            {onDismiss && (
+              <button
+                type="button"
+                onClick={onDismiss}
+                className="px-3 py-1.5 rounded-md bg-white/[0.08] hover:bg-white/[0.14] border border-white/[0.1] text-zinc-200 hover:text-white font-medium text-xs transition-all active:scale-95"
+              >
+                <span>Dismiss</span>
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

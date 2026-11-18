@@ -22,7 +22,7 @@ import {
   Sparkles,
   Clipboard,
 } from 'lucide-react';
-import { packageFilesIntoTar, ScannedFile } from '../lib/folder';
+import { packageFilesIntoTar, processDroppedData, ScannedFile } from '../lib/folder';
 import { isHotspotSubnet } from '../lib/network';
 
 interface FluidCanvasProps {
@@ -316,16 +316,30 @@ export function FluidCanvas({
                         e.preventDefault();
                         setHoveredDeviceId(null);
                       }}
-                      onDrop={(e) => {
+                      onDrop={async (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         setHoveredDeviceId(null);
-                        if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-                          if (onDropOnDevice) {
-                            onDropOnDevice(device, e.dataTransfer.files[0]);
-                          } else {
-                            onSelectDevice(device);
-                            onFileSelected(e.dataTransfer.files[0]);
+                        if (e.dataTransfer) {
+                          try {
+                            const result = await processDroppedData(e.dataTransfer);
+                            if (result && result.file) {
+                              if (onDropOnDevice) {
+                                onDropOnDevice(device, result.file);
+                              } else {
+                                onSelectDevice(device);
+                                onFileSelected(result.file);
+                              }
+                              return;
+                            }
+                          } catch {}
+                          if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                            if (onDropOnDevice) {
+                              onDropOnDevice(device, e.dataTransfer.files[0]);
+                            } else {
+                              onSelectDevice(device);
+                              onFileSelected(e.dataTransfer.files[0]);
+                            }
                           }
                         }
                       }}

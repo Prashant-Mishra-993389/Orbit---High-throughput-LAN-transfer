@@ -58,6 +58,8 @@ export default function Home() {
     incomingOffer,
     setIncomingOffer,
     acceptedOfferEvent,
+    rejectedOfferEvent,
+    cancelledTransferEvent,
     matchedPairingSession,
     pairedDevice,
     setPairedDevice,
@@ -262,6 +264,57 @@ export default function Home() {
     }
   }, [incomingOffer, activeTransfer]);
 
+  // Listen for recipient rejection events
+  useEffect(() => {
+    if (rejectedOfferEvent) {
+      if (
+        activeTransfer &&
+        activeTransfer.transferId === rejectedOfferEvent.transferId &&
+        activeTransfer.role === 'sender'
+      ) {
+        setActiveTransfer((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'REJECTED',
+                error: rejectedOfferEvent.reason || 'Recipient declined the transfer request.',
+              }
+            : null
+        );
+        pendingFileRef.current = null;
+      }
+      if (stagedShare && stagedShare.offer.transferId === rejectedOfferEvent.transferId) {
+        setStagedShare(null);
+        pendingFileRef.current = null;
+      }
+    }
+  }, [rejectedOfferEvent, activeTransfer, stagedShare]);
+
+  // Listen for peer cancellation events
+  useEffect(() => {
+    if (cancelledTransferEvent) {
+      if (activeTransfer && activeTransfer.transferId === cancelledTransferEvent.transferId) {
+        setActiveTransfer((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: 'CANCELLED',
+                error: cancelledTransferEvent.reason || 'Transfer was cancelled by peer.',
+              }
+            : null
+        );
+        pendingFileRef.current = null;
+      }
+      if (incomingOffer && incomingOffer.transferId === cancelledTransferEvent.transferId) {
+        setIncomingOffer(null);
+      }
+      if (stagedShare && stagedShare.offer.transferId === cancelledTransferEvent.transferId) {
+        setStagedShare(null);
+        pendingFileRef.current = null;
+      }
+    }
+  }, [cancelledTransferEvent, activeTransfer, incomingOffer, stagedShare]);
+
   /**
    * DIRECT AIRDROP-STYLE STREAM WORKFLOW:
    * If a peer device is already connected or found, dropping/picking a file
@@ -270,6 +323,12 @@ export default function Home() {
    */
   const handleDropFirstFile = useCallback(
     async (file: File) => {
+      // Cleanly cancel any previous staged share offer before creating a new one
+      if (stagedShare) {
+        cancelTransfer(stagedShare.offer.transferId).catch(() => {});
+        setStagedShare(null);
+      }
+
       setIsSending(true);
 
       try {
@@ -286,6 +345,11 @@ export default function Home() {
           transportMode = probe.selectedTransport;
         }
 
+        const targetHost =
+          targetPeer && targetPeer.ip && targetPeer.port
+            ? `http://${targetPeer.ip}:${targetPeer.port}`
+            : undefined;
+
         const offer = await createTransferOffer({
           fileName: file.name,
           fileSize: file.size,
@@ -294,6 +358,7 @@ export default function Home() {
           senderDeviceName: session.clientName,
           targetDeviceId: targetPeer?.deviceId,
           targetClientId: targetPeer?.deviceId,
+          targetHost,
           transportMode,
         });
 
@@ -330,7 +395,7 @@ export default function Home() {
         setIsSending(false);
       }
     },
-    [pairedDevice, devices, session]
+    [pairedDevice, devices, session, stagedShare]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -526,20 +591,46 @@ export default function Home() {
         if (!res.ok) return;
         const list = await res.json();
         const found = list.find((t: any) => t.transferId === activeTransfer.transferId);
-        if (found && found.bytesTransferred > 0) {
-          setActiveTransfer((prev) => {
-            if (!prev || prev.transferId !== activeTransfer.transferId) return prev;
-            return {
-              ...prev,
-              bytesTransferred: found.bytesTransferred,
-              percentage: found.percentage,
-              currentSpeed: found.currentSpeed,
-              averageSpeed: found.averageSpeed,
-              etaSeconds: found.etaSeconds,
-              status: found.status === 'COMPLETED' ? 'COMPLETED' : prev.status,
-              finalHash: found.finalHash || prev.finalHash,
-            };
-          });
+        if (found) {
+          if (
+            found.status === 'COMPLETED' ||
+            found.status === 'CANCELLED' ||
+            found.status === 'FAILED' ||
+            found.status === 'REJECTED'
+          ) {
+            setActiveTransfer((prev) => {
+              if (!prev || prev.transferId !== activeTransfer.transferId) return prev;
+              return {
+                ...prev,
+                status: found.status,
+                bytesTransferred: found.bytesTransferred,
+                percentage: found.percentage,
+                currentSpeed: 0,
+                etaSeconds: 0,
+                finalHash: found.finalHash || prev.finalHash,
+                error:
+                  found.error ||
+                  (found.status === 'CANCELLED' ? 'Transfer was cancelled by sender.' : prev.error),
+              };
+            });
+            return;
+          }
+
+          if (found.bytesTransferred > 0) {
+            setActiveTransfer((prev) => {
+              if (!prev || prev.transferId !== activeTransfer.transferId) return prev;
+              return {
+                ...prev,
+                bytesTransferred: found.bytesTransferred,
+                percentage: found.percentage,
+                currentSpeed: found.currentSpeed,
+                averageSpeed: found.averageSpeed,
+                etaSeconds: found.etaSeconds,
+                status: prev.status,
+                finalHash: found.finalHash || prev.finalHash,
+              };
+            });
+          }
         }
       } catch {}
     }, 400);
@@ -553,15 +644,21 @@ export default function Home() {
    */
   const handleAcceptOffer = async (offer: TransferOffer, fileHandle?: any) => {
     try {
-      receiverSenderHostRef.current =
+      const senderHost =
         offer.senderIp && offer.senderPort
           ? `http://${offer.senderIp}:${offer.senderPort}`
           : getServerBaseUrl();
 
-      await acceptTransferOffer(offer.transferId, {
-        receiverClientId: session.clientId,
-        receiverDeviceName: session.clientName,
-      });
+      receiverSenderHostRef.current = senderHost;
+
+      await acceptTransferOffer(
+        offer.transferId,
+        {
+          receiverClientId: session.clientId,
+          receiverDeviceName: session.clientName,
+        },
+        senderHost
+      );
 
       const isRelay = offer.transportMode === 'RELAY_STREAM';
 
@@ -639,18 +736,26 @@ export default function Home() {
     }
   };
 
-  const handleRejectOffer = async (offer: TransferOffer) => {
+  const handleRejectOffer = async (offer: TransferOffer, reason = 'User declined') => {
+    const senderHost =
+      offer.senderIp && offer.senderPort
+        ? `http://${offer.senderIp}:${offer.senderPort}`
+        : getServerBaseUrl();
+
     try {
-      await rejectTransferOffer(offer.transferId, 'User declined');
+      await rejectTransferOffer(offer.transferId, reason, senderHost);
     } catch {}
     setIncomingOffer(null);
   };
 
   const handleCancelTransfer = async (transferId: string) => {
+    const targetHost = receiverSenderHostRef.current || getServerBaseUrl();
     try {
-      await cancelTransfer(transferId);
+      await cancelTransfer(transferId, targetHost);
       setActiveTransfer((prev) =>
-        prev && prev.transferId === transferId ? { ...prev, status: 'CANCELLED' } : null
+        prev && prev.transferId === transferId
+          ? { ...prev, status: 'CANCELLED', error: 'Transfer was cancelled.' }
+          : null
       );
       pendingFileRef.current = null;
     } catch (err) {
@@ -662,26 +767,42 @@ export default function Home() {
   useEffect(() => {
     if (!activeTransfer) return;
     const serverSession = transfers.find((t) => t.transferId === activeTransfer.transferId);
-    if (serverSession && serverSession.bytesTransferred > 0) {
-      setActiveTransfer((prev) =>
-        prev
-          ? {
-              ...prev,
-              bytesTransferred: serverSession.bytesTransferred,
-              percentage: serverSession.percentage,
-              currentSpeed: serverSession.currentSpeed,
-              averageSpeed: serverSession.averageSpeed,
-              etaSeconds: serverSession.etaSeconds,
-              status:
-                serverSession.status === 'COMPLETED'
-                  ? 'COMPLETED'
-                  : serverSession.status === 'VERIFYING'
-                  ? 'VERIFYING'
-                  : prev.status,
-              finalHash: serverSession.finalHash || prev.finalHash,
-            }
-          : null
-      );
+    if (serverSession) {
+      if (
+        serverSession.status === 'CANCELLED' ||
+        serverSession.status === 'FAILED' ||
+        serverSession.status === 'REJECTED'
+      ) {
+        setActiveTransfer((prev) =>
+          prev
+            ? {
+                ...prev,
+                status: serverSession.status,
+                error: serverSession.error || prev.error,
+              }
+            : null
+        );
+      } else if (serverSession.bytesTransferred > 0) {
+        setActiveTransfer((prev) =>
+          prev
+            ? {
+                ...prev,
+                bytesTransferred: serverSession.bytesTransferred,
+                percentage: serverSession.percentage,
+                currentSpeed: serverSession.currentSpeed,
+                averageSpeed: serverSession.averageSpeed,
+                etaSeconds: serverSession.etaSeconds,
+                status:
+                  serverSession.status === 'COMPLETED'
+                    ? 'COMPLETED'
+                    : serverSession.status === 'VERIFYING'
+                    ? 'VERIFYING'
+                    : prev.status,
+                finalHash: serverSession.finalHash || prev.finalHash,
+              }
+            : null
+        );
+      }
     }
   }, [transfers, activeTransfer]);
 
@@ -717,10 +838,26 @@ export default function Home() {
           <div className="space-y-4 animate-fade-in">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center space-x-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    activeTransfer.status === 'COMPLETED'
+                      ? 'bg-emerald-400'
+                      : activeTransfer.status === 'CANCELLED' ||
+                        activeTransfer.status === 'FAILED' ||
+                        activeTransfer.status === 'REJECTED'
+                      ? 'bg-rose-400'
+                      : 'bg-cyan-400 animate-pulse'
+                  }`}
+                />
                 <span className="text-xs uppercase font-medium tracking-wider text-zinc-400">
                   {activeTransfer.status === 'COMPLETED'
                     ? 'Transfer Complete'
+                    : activeTransfer.status === 'CANCELLED'
+                    ? 'Transfer Cancelled'
+                    : activeTransfer.status === 'REJECTED'
+                    ? 'Transfer Declined'
+                    : activeTransfer.status === 'FAILED'
+                    ? 'Transfer Interrupted'
                     : activeTransfer.status === 'OFFERED'
                     ? 'Waiting for Recipient'
                     : activeTransfer.role === 'sender'
@@ -729,21 +866,46 @@ export default function Home() {
                 </span>
               </div>
 
-              {activeTransfer.status === 'COMPLETED' && (
+              {(activeTransfer.status === 'COMPLETED' ||
+                activeTransfer.status === 'CANCELLED' ||
+                activeTransfer.status === 'FAILED' ||
+                activeTransfer.status === 'REJECTED') && (
                 <button
                   onClick={() => {
                     setActiveTransfer(null);
                     setStagedShare(null);
+                    pendingFileRef.current = null;
                   }}
-                  className="px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-xs font-medium text-white flex items-center space-x-1.5 transition-all border border-white/[0.1] shadow-sm"
+                  className="px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-xs font-medium text-white flex items-center space-x-1.5 transition-all border border-white/[0.1] shadow-sm active:scale-95"
                 >
                   <PlusCircle className="w-3.5 h-3.5 text-zinc-300" />
-                  <span>Send Another</span>
+                  <span>
+                    {activeTransfer.status === 'COMPLETED' ? 'Send Another' : 'Back to Canvas'}
+                  </span>
                 </button>
               )}
             </div>
 
-            <TransferCard transfer={activeTransfer} onCancel={handleCancelTransfer} />
+            <TransferCard
+              transfer={activeTransfer}
+              onCancel={handleCancelTransfer}
+              onDismiss={() => {
+                setActiveTransfer(null);
+                setStagedShare(null);
+                pendingFileRef.current = null;
+              }}
+              onRetry={() => {
+                if (activeTransfer.role === 'sender' && pendingFileRef.current) {
+                  const retryFile = pendingFileRef.current.file;
+                  setActiveTransfer(null);
+                  handleDropFirstFile(retryFile);
+                } else {
+                  setActiveTransfer(null);
+                  setStagedShare(null);
+                  pendingFileRef.current = null;
+                }
+              }}
+            />
 
             {activeTransfer.status === 'COMPLETED' && (
               <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-center space-y-1 text-xs">
@@ -771,7 +933,9 @@ export default function Home() {
             offer={incomingOffer}
             onAccept={handleAcceptOffer}
             onReject={handleRejectOffer}
-            onSwitchToSender={() => setIncomingOffer(null)}
+            onSwitchToSender={() => {
+              handleRejectOffer(incomingOffer, 'User switched to sender');
+            }}
           />
         ) : stagedShare ? (
           /* ============================================================ */
@@ -787,11 +951,15 @@ export default function Home() {
               setPairedDevice(device);
               if (stagedShare) {
                 const fileToSend = stagedShare.file;
+                cancelTransfer(stagedShare.offer.transferId).catch(() => {});
                 setStagedShare(null);
                 handleDropFirstFile(fileToSend);
               }
             }}
             onCancel={() => {
+              if (stagedShare) {
+                cancelTransfer(stagedShare.offer.transferId).catch(() => {});
+              }
               setStagedShare(null);
               pendingFileRef.current = null;
             }}

@@ -22,8 +22,24 @@ import { peerDiscovery } from '../discovery/peerDiscovery.js';
 import { getNetworkDiagnostics } from '../diagnostics/network.js';
 import { wsHub } from '../websocket/server.js';
 
-// In-memory active offers
+// In-memory active offers with strict TTL cleanup
+const OFFER_TTL_MS = 3 * 60 * 1000; // 3-minute TTL for pending transfer offers
 const activeOffers = new Map<string, TransferOffer>();
+
+function pruneStaleOffers(): void {
+  const now = Date.now();
+  for (const [id, offer] of activeOffers.entries()) {
+    if (offer.status === 'OFFERED' && now - offer.createdAt > OFFER_TTL_MS) {
+      activeOffers.delete(id);
+      streamBridge.removeBridge(id);
+      relayBridge.cancelSession(id);
+      transferManager.cancelTransfer(id).catch(() => {});
+    }
+  }
+}
+
+// Background sweep for expired offers every 30 seconds
+setInterval(pruneStaleOffers, 30000).unref();
 
 export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => {
   // Lightweight HTTP ping for client-side direct connectivity probes
@@ -499,9 +515,12 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
     return reply.status(201).send(offer);
   });
 
-  // Get active offers
+  // Get active offers (filtered for freshness & sorted newest first)
   server.get('/api/transfers/offers', async () => {
-    return Array.from(activeOffers.values());
+    pruneStaleOffers();
+    return Array.from(activeOffers.values())
+      .filter((o) => o.status === 'OFFERED' && Date.now() - o.createdAt <= OFFER_TTL_MS)
+      .sort((a, b) => b.createdAt - a.createdAt);
   });
 
   // Recipient Accepts Transfer Offer
@@ -560,6 +579,8 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
 
     transferManager.markRejected(id, reason);
     activeOffers.delete(id);
+    streamBridge.removeBridge(id);
+    relayBridge.cancelSession(id);
 
     wsHub.broadcast({
       type: 'transfer:reject',
@@ -702,14 +723,31 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
 
   // Cancel transfer
   server.delete<{ Params: { id: string } }>('/api/transfers/:id', async (request, reply) => {
-    const session = transferManager.getSession(request.params.id);
-    if (!session) {
+    const { id } = request.params;
+    const session = transferManager.getSession(id);
+    const hadOffer = activeOffers.has(id);
+
+    if (session) {
+      await transferManager.cancelTransfer(id);
+    }
+    streamBridge.removeBridge(id);
+    relayBridge.cancelSession(id);
+    activeOffers.delete(id);
+
+    // Broadcast cancellation immediately to all peers
+    wsHub.broadcast({
+      type: 'transfer:cancelled' as any,
+      payload: { transferId: id, reason: 'Transfer cancelled' },
+    });
+    wsHub.broadcast({
+      type: 'transfer:state_change',
+      payload: { transferId: id, status: 'CANCELLED' },
+    });
+
+    if (!session && !hadOffer) {
       return reply.status(404).send({ error: 'Transfer not found' });
     }
 
-    await transferManager.cancelTransfer(request.params.id);
-    streamBridge.removeBridge(request.params.id);
-    activeOffers.delete(request.params.id);
     return { success: true, message: 'Transfer cancelled' };
   });
 

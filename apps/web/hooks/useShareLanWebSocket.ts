@@ -35,6 +35,14 @@ export function useShareLanWebSocket() {
     receiverDeviceId?: string;
     transportMode?: 'DIRECT_LAN' | 'RELAY_STREAM';
   } | null>(null);
+  const [rejectedOfferEvent, setRejectedOfferEvent] = useState<{
+    transferId: string;
+    reason?: string;
+  } | null>(null);
+  const [cancelledTransferEvent, setCancelledTransferEvent] = useState<{
+    transferId: string;
+    reason?: string;
+  } | null>(null);
   const [matchedPairingSession, setMatchedPairingSession] = useState<PairingSession | null>(null);
   const [pairedDevice, setPairedDevice] = useState<DeviceInfo | null>(null);
   const [diagnostics, setDiagnostics] = useState<NetworkDiagnostics | null>(null);
@@ -61,13 +69,19 @@ export function useShareLanWebSocket() {
       setDevices(dList);
       if (diag) setDiagnostics(diag);
 
-      // Only show incoming offers originating from OTHER devices
-      const latestOffer = oList.find(
-        (o) =>
-          o.status === 'OFFERED' &&
-          o.senderClientId !== currentSession.clientId &&
-          (!o.targetClientId || o.targetClientId === currentSession.clientId)
-      );
+      // Only show incoming offers originating from OTHER devices that are fresh (not expired)
+      const now = Date.now();
+      const validOffers = oList
+        .filter(
+          (o) =>
+            o.status === 'OFFERED' &&
+            o.senderClientId !== currentSession.clientId &&
+            (!o.targetClientId || o.targetClientId === currentSession.clientId) &&
+            now - o.createdAt <= 3 * 60 * 1000
+        )
+        .sort((a, b) => b.createdAt - a.createdAt);
+
+      const latestOffer = validOffers[0];
       if (latestOffer) {
         setIncomingOffer(latestOffer);
       }
@@ -136,6 +150,14 @@ export function useShareLanWebSocket() {
               break;
 
             case 'transfer:reject':
+              setRejectedOfferEvent(msg.payload);
+              setIncomingOffer((prev) =>
+                prev?.transferId === msg.payload.transferId ? null : prev
+              );
+              break;
+
+            case 'transfer:cancelled':
+              setCancelledTransferEvent(msg.payload);
               setIncomingOffer((prev) =>
                 prev?.transferId === msg.payload.transferId ? null : prev
               );
@@ -173,6 +195,17 @@ export function useShareLanWebSocket() {
             }
 
             case 'transfer:state_change':
+              if (msg.payload.status === 'CANCELLED') {
+                setCancelledTransferEvent({ transferId: msg.payload.transferId });
+                setIncomingOffer((prev) =>
+                  prev?.transferId === msg.payload.transferId ? null : prev
+                );
+              } else if (msg.payload.status === 'REJECTED') {
+                setRejectedOfferEvent({ transferId: msg.payload.transferId, reason: msg.payload.error });
+                setIncomingOffer((prev) =>
+                  prev?.transferId === msg.payload.transferId ? null : prev
+                );
+              }
               setTransfers((prev) =>
                 prev.map((t) =>
                   t.transferId === msg.payload.transferId
@@ -265,6 +298,8 @@ export function useShareLanWebSocket() {
     incomingOffer,
     setIncomingOffer,
     acceptedOfferEvent,
+    rejectedOfferEvent,
+    cancelledTransferEvent,
     matchedPairingSession,
     pairedDevice,
     setPairedDevice,

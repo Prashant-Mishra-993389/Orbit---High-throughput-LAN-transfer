@@ -124,6 +124,10 @@ export class WebSocketHub {
 
     transferManager.on('transfer:cancelled', (payload) => {
       this.broadcast({
+        type: 'transfer:cancelled' as any,
+        payload: { transferId: payload.transferId },
+      });
+      this.broadcast({
         type: 'transfer:state_change',
         payload: { transferId: payload.transferId, status: 'CANCELLED' },
       });

@@ -176,6 +176,7 @@ export type ControlMessage =
   | { type: 'transfer:accept'; payload: { transferId: string; receiverDeviceId?: string; receiverDeviceName?: string; receiverClientId?: string } }
   | { type: 'transfer:accepted'; payload: { transferId: string; receiverDeviceId?: string; receiverDeviceName?: string; receiverClientId?: string; transportMode?: TransportMode } }
   | { type: 'transfer:reject'; payload: { transferId: string; reason?: string } }
+  | { type: 'transfer:cancelled'; payload: { transferId: string; reason?: string } }
   | { type: 'transfer:stream_ready'; payload: { transferId: string; streamUrl: string } }
   | { type: 'transfer:created'; payload: TransferSession }
   | { type: 'transfer:progress'; payload: ProgressPayload }

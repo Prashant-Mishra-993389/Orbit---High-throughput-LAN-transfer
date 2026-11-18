@@ -132,7 +132,34 @@ export class RelayBridgeManager extends EventEmitter {
     }
 
     return new Promise((resolve, reject) => {
+      let isSettled = false;
+
+      const onBridgeTerminated = (err?: Error) => {
+        if (isSettled) return;
+        isSettled = true;
+        const error = err || new Error('Receiver disconnected or relay cancelled');
+        try {
+          inputStream.destroy(error);
+        } catch {}
+        bridge.session.status = 'FAILED';
+        transferManager.markFailed(bridge.session.transferId, error.message);
+        this.activeBridges.delete(sessionId);
+        reject(error);
+      };
+
+      bridge.passThrough.once('error', onBridgeTerminated);
+      bridge.passThrough.once('close', () => {
+        if (!inputStream.readableEnded && !isSettled) {
+          onBridgeTerminated();
+        }
+      });
+
       inputStream.on('data', (chunk: Buffer) => {
+        if (isSettled || bridge.passThrough.destroyed) {
+          onBridgeTerminated();
+          return;
+        }
+
         bridge.session.bytesRelayed += chunk.length;
         bridge.hasher.update(chunk);
         bridge.lastActivity = Date.now();
@@ -152,12 +179,18 @@ export class RelayBridgeManager extends EventEmitter {
         if (!canContinue) {
           inputStream.pause();
           bridge.passThrough.once('drain', () => {
-            inputStream.resume();
+            if (!bridge.passThrough.destroyed && !isSettled) {
+              inputStream.resume();
+            } else {
+              onBridgeTerminated();
+            }
           });
         }
       });
 
       inputStream.on('end', () => {
+        if (isSettled) return;
+        isSettled = true;
         bridge.passThrough.end();
         bridge.session.status = 'COMPLETED';
         const finalHash = bridge.hasher.digest('hex');
@@ -183,7 +216,8 @@ export class RelayBridgeManager extends EventEmitter {
       });
 
       inputStream.on('close', () => {
-        if (!inputStream.readableEnded && bridge.passThrough && !bridge.passThrough.destroyed) {
+        if (!inputStream.readableEnded && bridge.passThrough && !bridge.passThrough.destroyed && !isSettled) {
+          isSettled = true;
           bridge.session.status = 'FAILED';
           bridge.passThrough.destroy(new Error('Sender disconnected mid-stream'));
           transferManager.markFailed(bridge.session.transferId, 'Sender disconnected mid-stream');
@@ -193,6 +227,8 @@ export class RelayBridgeManager extends EventEmitter {
       });
 
       inputStream.on('error', (err) => {
+        if (isSettled) return;
+        isSettled = true;
         bridge.session.status = 'FAILED';
         bridge.passThrough.destroy(err);
         transferManager.markFailed(bridge.session.transferId, err.message);
@@ -253,7 +289,9 @@ export class RelayBridgeManager extends EventEmitter {
     const bridge = this.activeBridges.get(sessionId);
     if (bridge) {
       bridge.session.status = 'CANCELLED';
-      bridge.passThrough.destroy();
+      if (!bridge.passThrough.destroyed) {
+        bridge.passThrough.destroy(new Error('Relay cancelled'));
+      }
       this.activeBridges.delete(sessionId);
     }
   }

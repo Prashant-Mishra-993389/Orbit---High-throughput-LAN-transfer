@@ -84,7 +84,33 @@ export class StreamBridgeManager extends EventEmitter {
     }
 
     return new Promise((resolve, reject) => {
+      let isSettled = false;
+
+      const onBridgeTerminated = (err?: Error) => {
+        if (isSettled) return;
+        isSettled = true;
+        const error = err || new Error('Receiver disconnected or transfer cancelled');
+        try {
+          inputStream.destroy(error);
+        } catch {}
+        this.bridges.delete(transferId);
+        transferManager.markFailed(transferId, error.message);
+        reject(error);
+      };
+
+      bridge!.passThrough.once('error', onBridgeTerminated);
+      bridge!.passThrough.once('close', () => {
+        if (!inputStream.readableEnded && !isSettled) {
+          onBridgeTerminated();
+        }
+      });
+
       inputStream.on('data', (chunk: Buffer) => {
+        if (isSettled || bridge!.passThrough.destroyed) {
+          onBridgeTerminated();
+          return;
+        }
+
         bridge!.bytesTransferred += chunk.length;
         bridge!.hasher.update(chunk);
 
@@ -96,12 +122,18 @@ export class StreamBridgeManager extends EventEmitter {
         if (!canContinue) {
           inputStream.pause();
           bridge!.passThrough.once('drain', () => {
-            inputStream.resume();
+            if (!bridge!.passThrough.destroyed && !isSettled) {
+              inputStream.resume();
+            } else {
+              onBridgeTerminated();
+            }
           });
         }
       });
 
       inputStream.on('end', () => {
+        if (isSettled) return;
+        isSettled = true;
         bridge!.passThrough.end();
         const finalHash = bridge!.hasher.digest('hex');
         transferManager.markCompleted(transferId, finalHash);
@@ -113,7 +145,8 @@ export class StreamBridgeManager extends EventEmitter {
       });
 
       inputStream.on('close', () => {
-        if (!inputStream.readableEnded && bridge?.passThrough && !bridge.passThrough.destroyed) {
+        if (!inputStream.readableEnded && bridge?.passThrough && !bridge.passThrough.destroyed && !isSettled) {
+          isSettled = true;
           bridge.passThrough.destroy(new Error('Sender disconnected mid-stream'));
           transferManager.markFailed(transferId, 'Sender disconnected mid-stream');
           this.bridges.delete(transferId);
@@ -122,6 +155,8 @@ export class StreamBridgeManager extends EventEmitter {
       });
 
       inputStream.on('error', (err) => {
+        if (isSettled) return;
+        isSettled = true;
         bridge!.passThrough.destroy(err);
         transferManager.markFailed(transferId, err.message);
         this.bridges.delete(transferId);
@@ -180,7 +215,9 @@ export class StreamBridgeManager extends EventEmitter {
   public removeBridge(transferId: string): void {
     const bridge = this.bridges.get(transferId);
     if (bridge) {
-      bridge.passThrough.destroy();
+      if (!bridge.passThrough.destroyed) {
+        bridge.passThrough.destroy(new Error('Transfer cancelled'));
+      }
       this.bridges.delete(transferId);
     }
   }
