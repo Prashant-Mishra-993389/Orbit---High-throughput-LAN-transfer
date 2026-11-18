@@ -803,6 +803,7 @@ export default function Home() {
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenHistory={() => setIsHistoryOpen(true)}
         historyCount={completedRecords.length}
+        activeTransfer={activeTransfer}
         onRefresh={() => {
           refreshState();
         }}

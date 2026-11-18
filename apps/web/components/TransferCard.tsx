@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { formatBytes, formatSpeed, formatDuration } from '@sharelan/shared';
 import { TransferStatus, TransportMode } from '@sharelan/protocol';
 import {
@@ -18,7 +18,83 @@ import {
   X,
   AlertCircle,
   Ban,
+  Activity,
 } from 'lucide-react';
+import { SpotlightCard } from './SpotlightCard';
+import { playSuccessChime } from '../lib/sound';
+
+/**
+ * Real-time dynamic throughput waveform / oscillogram.
+ * Modulates harmonic sine waves according to instantaneous streaming velocity.
+ */
+const ThroughputWaveform: React.FC<{ speed: number; active: boolean }> = ({ speed, active }) => {
+  const [phase, setPhase] = useState(0);
+
+  useEffect(() => {
+    if (!active || speed === 0) return;
+    let animId: number;
+    const animate = () => {
+      setPhase((prev) => (prev + 0.08) % (Math.PI * 2));
+      animId = requestAnimationFrame(animate);
+    };
+    animId = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(animId);
+  }, [active, speed]);
+
+  const width = 360;
+  const height = 24;
+  const midY = height / 2;
+
+  if (!active || speed === 0) {
+    return (
+      <div className="w-full h-5 flex items-center justify-center opacity-25">
+        <div className="w-full h-px bg-white/20" />
+      </div>
+    );
+  }
+
+  // Generate dynamic sinusoidal waveform points
+  const points: string[] = [];
+  const pointsCount = 40;
+  // Amplitude scales smoothly with throughput (up to 150+ MB/s)
+  const amp = Math.min(8.5, Math.max(2.5, (speed / (60 * 1024 * 1024)) * 8.5));
+  const freq = 2.4;
+
+  for (let i = 0; i <= pointsCount; i++) {
+    const x = (i / pointsCount) * width;
+    const normalizedX = (i / pointsCount) * Math.PI * 2 * freq;
+    // Window function so ends smoothly taper to zero at boundaries
+    const envelope = Math.sin((i / pointsCount) * Math.PI);
+    const y = midY + Math.sin(normalizedX + phase) * amp * envelope;
+    points.push(`${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`);
+  }
+
+  const pathD = points.join(' ');
+
+  return (
+    <div className="w-full h-5 relative overflow-hidden flex items-center select-none pointer-events-none">
+      <svg
+        viewBox={`0 0 ${width} ${height}`}
+        className="w-full h-full"
+        fill="none"
+      >
+        <defs>
+          <linearGradient id="waveGlow" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="rgba(56, 189, 248, 0.2)" />
+            <stop offset="50%" stopColor="rgba(56, 189, 248, 0.95)" />
+            <stop offset="100%" stopColor="rgba(168, 85, 247, 0.5)" />
+          </linearGradient>
+        </defs>
+        <path
+          d={pathD}
+          stroke="url(#waveGlow)"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+        />
+      </svg>
+    </div>
+  );
+};
 
 export interface ActiveTransferState {
   transferId: string;
@@ -65,18 +141,48 @@ export const TransferCard: React.FC<TransferCardProps> = ({
   const isTerminalError = isFailed || isCancelled || isRejected;
   const isRelay = transfer.transportMode === 'RELAY_STREAM';
 
+  // Procedural audio chime on completion
+  useEffect(() => {
+    if (transfer.status === 'COMPLETED') {
+      playSuccessChime();
+    }
+  }, [transfer.status]);
+
   return (
-    <div className="p-5 rounded-xl bg-obsidian-card border border-white/[0.08] shadow-xl transition-all space-y-4">
+    <SpotlightCard
+      spotlightColor={
+        isCompleted
+          ? 'rgba(16, 185, 129, 0.06)'
+          : isTerminalError
+          ? 'rgba(244, 63, 94, 0.05)'
+          : 'rgba(56, 189, 248, 0.05)'
+      }
+      borderColor={
+        isCompleted
+          ? 'rgba(16, 185, 129, 0.3)'
+          : isTerminalError
+          ? 'rgba(244, 63, 94, 0.25)'
+          : 'rgba(56, 189, 248, 0.25)'
+      }
+      className="p-5 relative shadow-2xl transition-all space-y-4 overflow-hidden"
+    >
+      {/* Specular Sweep Flash on Transfer Completion */}
+      {isCompleted && (
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.08] to-transparent pointer-events-none animate-sweep" />
+      )}
+
       {/* Top Header */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center space-x-3 min-w-0">
           <div
-            className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 border ${
+            className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 border spring-transition ${
               isTerminalError
                 ? 'bg-rose-500/10 text-rose-400 border-rose-500/20'
+                : isCompleted
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30'
                 : isSender
                 ? 'bg-white/[0.04] text-zinc-200 border-white/[0.08]'
-                : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
             }`}
           >
             {isTerminalError ? (
@@ -96,14 +202,14 @@ export const TransferCard: React.FC<TransferCardProps> = ({
 
               {/* Automatic Transport Badge */}
               {isRelay ? (
-                <span className="inline-flex items-center space-x-1 px-1.5 py-0.2 rounded text-[10px] font-mono text-zinc-400 bg-white/[0.04] border border-white/[0.06]">
+                <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-400 bg-white/[0.04] border border-white/[0.06]">
                   <Globe className="w-2.5 h-2.5" />
                   <span>Relay</span>
                 </span>
               ) : (
-                <span className="inline-flex items-center space-x-1 px-1.5 py-0.2 rounded text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
+                <span className="inline-flex items-center space-x-1 px-1.5 py-0.5 rounded text-[10px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
                   <Zap className="w-2.5 h-2.5" />
-                  <span>Direct</span>
+                  <span>Direct Pipe</span>
                 </span>
               )}
             </div>
@@ -149,7 +255,7 @@ export const TransferCard: React.FC<TransferCardProps> = ({
               ) : (
                 <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded bg-emerald-500/10 border border-emerald-500/20 text-xs text-emerald-400 font-medium">
                   <ShieldCheck className="w-3.5 h-3.5" />
-                  <span>{isSender ? 'Streamed' : 'Saved'}</span>
+                  <span>{isSender ? 'Streamed' : 'Saved to Disk'}</span>
                 </div>
               )}
             </div>
@@ -164,25 +270,39 @@ export const TransferCard: React.FC<TransferCardProps> = ({
         </div>
       </div>
 
-      {/* Progress Bar (Linear Precision) */}
-      <div className="relative w-full h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+      {/* Real-time Data Superhighway: Dynamic Waveform Oscillogram */}
+      <ThroughputWaveform speed={transfer.currentSpeed} active={isTransferring} />
+
+      {/* Progress Track with Kinetic Laser Filament Head */}
+      <div className="relative w-full h-1.5 rounded-full bg-white/[0.06] overflow-visible">
         {isWaiting ? (
           <div className="h-full w-full bg-white/20 animate-pulse rounded-full" />
         ) : (
-          <div
-            className={`h-full transition-all duration-150 rounded-full ${
-              isCompleted
-                ? 'bg-emerald-400'
-                : isTerminalError
-                ? 'bg-rose-500'
-                : 'bg-white'
-            }`}
-            style={{ width: `${Math.min(100, Math.max(0, transfer.percentage))}%` }}
-          />
+          <div className="relative w-full h-full">
+            {/* Base Fill */}
+            <div
+              className={`h-full transition-all duration-150 rounded-full ${
+                isCompleted
+                  ? 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.5)]'
+                  : isTerminalError
+                  ? 'bg-rose-500'
+                  : 'bg-gradient-to-r from-cyan-500 to-white'
+              }`}
+              style={{ width: `${Math.min(100, Math.max(0, transfer.percentage))}%` }}
+            />
+
+            {/* Glowing Laser Filament Progress Head */}
+            {isTransferring && transfer.percentage > 0 && transfer.percentage < 100 && (
+              <span
+                className="absolute top-1/2 -translate-y-1/2 -ml-1.5 w-3 h-3 bg-white rounded-full shadow-[0_0_12px_2px_rgba(255,255,255,0.95),0_0_24px_5px_rgba(56,189,248,0.85)] animate-laser pointer-events-none"
+                style={{ left: `${Math.min(100, Math.max(0, transfer.percentage))}%` }}
+              />
+            )}
+          </div>
         )}
       </div>
 
-      {/* Status & Metrics */}
+      {/* Status & Velocity Metrics (Tabular Numbers) */}
       <div className="flex items-center justify-between text-xs text-zinc-400 font-mono tabular-nums">
         {isWaiting ? (
           <span className="text-zinc-400">
@@ -201,13 +321,14 @@ export const TransferCard: React.FC<TransferCardProps> = ({
         ) : (
           <>
             <div className="flex items-center space-x-3">
-              <span className="font-semibold text-zinc-100">{transfer.percentage.toFixed(1)}%</span>
-              <span>
+              <span className="font-semibold text-zinc-100 text-sm tracking-tight">{transfer.percentage.toFixed(1)}%</span>
+              <span className="text-zinc-400">
                 {formatBytes(transfer.bytesTransferred)} / {formatBytes(transfer.fileSize)}
               </span>
               {isTransferring && transfer.currentSpeed > 0 && (
-                <span className="text-zinc-200 font-medium">
-                  {formatSpeed(transfer.currentSpeed)}
+                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-300 font-semibold text-[11px] shadow-sm">
+                  <Activity className="w-3 h-3 text-cyan-400 animate-pulse" />
+                  <span>{formatSpeed(transfer.currentSpeed)}</span>
                 </span>
               )}
             </div>
@@ -275,6 +396,6 @@ export const TransferCard: React.FC<TransferCardProps> = ({
           </div>
         </div>
       )}
-    </div>
+    </SpotlightCard>
   );
 };

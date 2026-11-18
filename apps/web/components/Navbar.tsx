@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { NetworkDiagnostics } from '@sharelan/protocol';
+import { formatSpeed } from '@sharelan/shared';
 import { ClientSession, setClientName } from '../lib/session';
-import { Wifi, WifiOff, Activity, Laptop, Edit2, Check, Settings, Clock } from 'lucide-react';
+import { Wifi, WifiOff, Activity, Laptop, Edit2, Check, Settings, Clock, Zap } from 'lucide-react';
+import { ActiveTransferState } from './TransferCard';
 
 interface NavbarProps {
   session: ClientSession;
@@ -12,6 +14,7 @@ interface NavbarProps {
   onOpenHistory?: () => void;
   historyCount?: number;
   onRefresh: () => void;
+  activeTransfer?: ActiveTransferState | null;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -22,6 +25,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onOpenSettings,
   onOpenHistory,
   historyCount = 0,
+  activeTransfer,
 }) => {
   const [isEditingName, setIsEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(session.clientName);
@@ -64,6 +68,31 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Dynamic Island Capsule HUD for Active Stream */}
+        {activeTransfer && (activeTransfer.status === 'TRANSFERRING' || activeTransfer.status === 'VERIFYING') && (
+          <div className="hidden md:flex items-center space-x-2 px-3 py-1 rounded-full bg-white/[0.06] border border-cyan-500/30 shadow-lg shadow-cyan-500/10 animate-fade-in text-xs font-mono">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-400"></span>
+            </span>
+            <span className="text-zinc-300 font-medium truncate max-w-[130px]" title={activeTransfer.fileName}>
+              {activeTransfer.fileName}
+            </span>
+            <span className="text-zinc-500">•</span>
+            <span className="text-zinc-100 font-semibold tabular-nums">
+              {activeTransfer.percentage.toFixed(0)}%
+            </span>
+            {activeTransfer.currentSpeed > 0 && (
+              <>
+                <span className="text-zinc-500">•</span>
+                <span className="text-cyan-300 font-semibold tabular-nums">
+                  {formatSpeed(activeTransfer.currentSpeed)}
+                </span>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Device Identity, Diagnostics & Settings */}
         <div className="flex items-center space-x-1.5">

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { DeviceInfo, NetworkDiagnostics } from '@sharelan/protocol';
 import {
   UploadCloud,
@@ -21,7 +21,10 @@ import {
   Send,
   Sparkles,
   Clipboard,
+  Flame,
 } from 'lucide-react';
+import { SpotlightCard } from './SpotlightCard';
+import { playMagneticSnap, playDropLatch } from '../lib/sound';
 import { packageFilesIntoTar, processDroppedData, ScannedFile } from '../lib/folder';
 import { isHotspotSubnet } from '../lib/network';
 
@@ -76,6 +79,50 @@ export function FluidCanvas({
   const folderInputRef = useRef<HTMLInputElement>(null);
   const [hoveredDeviceId, setHoveredDeviceId] = useState<string | null>(null);
   const [isProbing, setIsProbing] = useState(false);
+  const lastSoundDeviceIdRef = useRef<string | null>(null);
+
+  // Global Clipboard Paste Listener (Ctrl+V) for instant file & screenshot sharing
+  useEffect(() => {
+    const handlePaste = (e: ClipboardEvent) => {
+      // Don't intercept if user is typing into an input or textarea
+      if (
+        document.activeElement?.tagName === 'INPUT' ||
+        document.activeElement?.tagName === 'TEXTAREA'
+      ) {
+        return;
+      }
+
+      if (!e.clipboardData || !e.clipboardData.items) return;
+
+      const items: DataTransferItem[] = Array.from(e.clipboardData.items);
+      const fileItems = items.filter((item: DataTransferItem) => item.kind === 'file');
+
+      if (fileItems.length > 0) {
+        e.preventDefault();
+        const files: File[] = [];
+        for (const item of fileItems) {
+          const file = item.getAsFile();
+          if (file) files.push(file);
+        }
+
+        if (files.length === 1) {
+          playDropLatch();
+          onFileSelected(files[0]);
+        } else if (files.length > 1) {
+          playDropLatch();
+          const scanned: ScannedFile[] = files.map((f) => ({
+            file: f,
+            relativePath: f.name,
+          }));
+          const tarFile = packageFilesIntoTar(scanned, `Orbit_Pasted_${files.length}_Files`);
+          onFileSelected(tarFile);
+        }
+      }
+    };
+
+    window.addEventListener('paste', handlePaste);
+    return () => window.removeEventListener('paste', handlePaste);
+  }, [onFileSelected]);
 
   const isHotspot = isHotspotSubnet(diagnostics?.localIp);
   const activeDevices = nearbyDevices.filter((d) => d.deviceName !== clientName);
@@ -194,27 +241,27 @@ export function FluidCanvas({
       {/* Left (65%): Payload Drop Canvas | Right (35%): Recipients   */}
       {/* ============================================================ */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-5 my-5 items-stretch">
-        {/* LEFT COLUMN: THE PAYLOAD ZONE */}
-        <div
+        {/* LEFT COLUMN: THE PAYLOAD ZONE (ENHANCED SPOTLIGHT CARD) */}
+        <SpotlightCard
           onClick={() => fileInputRef.current?.click()}
-          className={`md:col-span-7 lg:col-span-8 p-8 sm:p-12 rounded-xl border transition-all duration-150 cursor-pointer flex flex-col items-center justify-center text-center relative group min-h-[360px] sm:min-h-[400px] ${
+          className={`md:col-span-7 lg:col-span-8 p-8 sm:p-12 cursor-pointer flex flex-col items-center justify-center text-center relative group min-h-[360px] sm:min-h-[400px] spring-transition ${
             isDragOver
-              ? 'bg-obsidian-hover border-white ring-2 ring-white/10 shadow-2xl scale-[1.005]'
-              : 'bg-obsidian-card/90 hover:bg-obsidian-hover/70 border-white/[0.08] hover:border-white/[0.18] shadow-xl'
+              ? 'bg-obsidian-hover border-white ring-2 ring-white/20 shadow-2xl scale-[1.008]'
+              : 'hover:bg-obsidian-hover/70 hover:border-white/[0.18]'
           }`}
         >
           {/* Subtle Corner Markers (Precision engineering detail) */}
-          <span className="absolute top-3 left-3 w-1.5 h-1.5 border-t border-l border-white/20" />
-          <span className="absolute top-3 right-3 w-1.5 h-1.5 border-t border-r border-white/20" />
-          <span className="absolute bottom-3 left-3 w-1.5 h-1.5 border-b border-l border-white/20" />
-          <span className="absolute bottom-3 right-3 w-1.5 h-1.5 border-b border-r border-white/20" />
+          <span className="absolute top-3 left-3 w-1.5 h-1.5 border-t border-l border-white/20 pointer-events-none" />
+          <span className="absolute top-3 right-3 w-1.5 h-1.5 border-t border-r border-white/20 pointer-events-none" />
+          <span className="absolute bottom-3 left-3 w-1.5 h-1.5 border-b border-l border-white/20 pointer-events-none" />
+          <span className="absolute bottom-3 right-3 w-1.5 h-1.5 border-b border-r border-white/20 pointer-events-none" />
 
-          {/* Hero Icon Box */}
+          {/* Hero Icon Box with kinetic spring feedback */}
           <div className="mb-4">
             <div
-              className={`w-14 h-14 rounded-xl flex items-center justify-center transition-all duration-150 border ${
+              className={`w-14 h-14 rounded-xl flex items-center justify-center spring-transition border ${
                 isDragOver
-                  ? 'bg-white text-zinc-950 border-white shadow-lg'
+                  ? 'bg-white text-zinc-950 border-white shadow-xl scale-110'
                   : 'bg-white/[0.04] border-white/[0.08] text-zinc-300 group-hover:text-white group-hover:border-white/20'
               }`}
             >
@@ -262,10 +309,16 @@ export function FluidCanvas({
               <span>Folder</span>
             </button>
           </div>
-        </div>
+
+          {/* Tactile Clipboard Paste Micro-Pill */}
+          <div className="mt-8 flex items-center space-x-2 text-[11px] text-zinc-500 font-mono bg-white/[0.03] px-3 py-1 rounded-full border border-white/[0.06] shadow-sm pointer-events-none">
+            <Clipboard className="w-3 h-3 text-zinc-400" />
+            <span>Tip: Press <kbd className="text-zinc-300 font-sans font-semibold">Ctrl+V</kbd> to paste files or screenshots</span>
+          </div>
+        </SpotlightCard>
 
         {/* RIGHT COLUMN: RECIPIENTS & CONNECT HUB */}
-        <div className="md:col-span-5 lg:col-span-4 p-5 rounded-xl bg-obsidian-card border border-white/[0.08] flex flex-col justify-between shadow-xl space-y-4">
+        <SpotlightCard className="md:col-span-5 lg:col-span-4 p-5 flex flex-col justify-between space-y-4">
           <div className="space-y-3">
             {/* Column Header */}
             <div className="flex items-center justify-between border-b border-white/[0.06] pb-2.5">
@@ -310,16 +363,25 @@ export function FluidCanvas({
                       onDragOver={(e) => {
                         e.preventDefault();
                         e.stopPropagation();
+                        if (lastSoundDeviceIdRef.current !== device.deviceId) {
+                          lastSoundDeviceIdRef.current = device.deviceId;
+                          playMagneticSnap();
+                        }
                         setHoveredDeviceId(device.deviceId);
                       }}
                       onDragLeave={(e) => {
                         e.preventDefault();
-                        setHoveredDeviceId(null);
+                        if (hoveredDeviceId === device.deviceId) {
+                          setHoveredDeviceId(null);
+                          lastSoundDeviceIdRef.current = null;
+                        }
                       }}
                       onDrop={async (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         setHoveredDeviceId(null);
+                        lastSoundDeviceIdRef.current = null;
+                        playDropLatch();
                         if (e.dataTransfer) {
                           try {
                             const result = await processDroppedData(e.dataTransfer);
@@ -343,9 +405,9 @@ export function FluidCanvas({
                           }
                         }
                       }}
-                      className={`w-full p-2.5 rounded-lg border text-left transition-all duration-150 flex items-center justify-between group active:scale-[0.98] ${
+                      className={`w-full p-2.5 rounded-lg border text-left spring-transition flex items-center justify-between group active:scale-[0.98] ${
                         isHovered
-                          ? 'bg-white/[0.12] border-white text-white shadow-md'
+                          ? 'bg-emerald-500/10 border-emerald-400/80 text-white shadow-lg ring-2 ring-emerald-400/30 scale-[1.03]'
                           : isSelected
                           ? 'bg-white/[0.08] border-white/40 text-white shadow-sm ring-1 ring-white/20'
                           : 'bg-obsidian-base hover:bg-obsidian-hover border-white/[0.06] hover:border-white/[0.16] text-zinc-300'
@@ -355,7 +417,9 @@ export function FluidCanvas({
                       <div className="flex items-center space-x-2.5 min-w-0 pr-2">
                         <div
                           className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 border transition-colors ${
-                            isSelected || isHovered
+                            isHovered
+                              ? 'bg-emerald-400 text-zinc-950 border-emerald-400 shadow-md'
+                              : isSelected
                               ? 'bg-white text-zinc-950 border-white'
                               : 'bg-white/[0.04] text-zinc-400 border-white/[0.06] group-hover:text-zinc-200'
                           }`}
@@ -373,7 +437,11 @@ export function FluidCanvas({
                       </div>
 
                       <div className="shrink-0 flex items-center space-x-1">
-                        {isSelected ? (
+                        {isHovered ? (
+                          <span className="px-2 py-0.5 rounded text-[10px] font-medium text-emerald-300 bg-emerald-500/20 border border-emerald-500/30 animate-pulse">
+                            Release to Send
+                          </span>
+                        ) : isSelected ? (
                           <span className="px-2 py-0.5 rounded text-[10px] font-medium text-emerald-400 bg-emerald-500/10 border border-emerald-500/20">
                             Selected
                           </span>
@@ -451,7 +519,7 @@ export function FluidCanvas({
               <span>Enter 6-Digit Pair Code</span>
             </button>
           </div>
-        </div>
+        </SpotlightCard>
       </div>
 
       {/* ============================================================ */}
