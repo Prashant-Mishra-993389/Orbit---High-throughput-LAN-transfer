@@ -133,10 +133,27 @@ export default function Home() {
     }
   }, [devices, pairedDevice, session.clientId]);
 
-  // Audio cue when an incoming offer arrives
+  // Audio cue and state reset when an incoming offer arrives
   useEffect(() => {
     if (incomingOffer && incomingOffer.status === 'OFFERED') {
       playOfferChime();
+
+      // If receiver was currently looking at a completed, cancelled, or failed transfer card,
+      // clear it immediately so the new incoming offer is presented seamlessly without manual action
+      setActiveTransfer((prev) => {
+        if (!prev) return null;
+        if (
+          prev.status === 'COMPLETED' ||
+          prev.status === 'CANCELLED' ||
+          prev.status === 'FAILED' ||
+          prev.status === 'REJECTED'
+        ) {
+          return null;
+        }
+        return prev;
+      });
+      setStagedShare(null);
+      pendingFileRef.current = null;
     }
   }, [incomingOffer]);
 
@@ -802,9 +819,67 @@ export default function Home() {
           </div>
         )}
         {/* ============================================================ */}
-        {/* VIEW 1: ACTIVE LIVE TRANSFER IN PROGRESS OR COMPLETED        */}
+        {/* VIEW 1: ACTIVE LIVE TRANSFER IN PROGRESS                     */}
+        {/* Only active in-flight transfers take precedence               */}
         {/* ============================================================ */}
-        {activeTransfer ? (
+        {activeTransfer &&
+        activeTransfer.status !== 'COMPLETED' &&
+        activeTransfer.status !== 'CANCELLED' &&
+        activeTransfer.status !== 'FAILED' &&
+        activeTransfer.status !== 'REJECTED' ? (
+          <div className="space-y-4 animate-fade-in">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center space-x-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                <span className="text-xs uppercase font-medium tracking-wider text-zinc-400">
+                  {activeTransfer.status === 'OFFERED'
+                    ? 'Waiting for Recipient'
+                    : activeTransfer.role === 'sender'
+                    ? 'Streaming to Peer'
+                    : 'Receiving from Peer'}
+                </span>
+              </div>
+            </div>
+
+            <TransferCard
+              transfer={activeTransfer}
+              onCancel={handleCancelTransfer}
+              onDismiss={() => {
+                setActiveTransfer(null);
+                setStagedShare(null);
+                pendingFileRef.current = null;
+              }}
+              onRetry={() => {
+                if (activeTransfer.role === 'sender' && pendingFileRef.current) {
+                  const retryFile = pendingFileRef.current.file;
+                  setActiveTransfer(null);
+                  handleDropFirstFile(retryFile);
+                } else {
+                  setActiveTransfer(null);
+                  setStagedShare(null);
+                  pendingFileRef.current = null;
+                }
+              }}
+            />
+          </div>
+        ) : incomingOffer && incomingOffer.status === 'OFFERED' ? (
+          /* ============================================================ */
+          /* VIEW 2: DEDICATED AIRDROP-STYLE MOBILE/WEB RECEIVER VIEW     */
+          /* Incoming offer always appears immediately, even after finish */
+          /* ============================================================ */
+          <ReceiverView
+            offer={incomingOffer}
+            onAccept={handleAcceptOffer}
+            onReject={handleRejectOffer}
+            onSwitchToSender={() => {
+              handleRejectOffer(incomingOffer, 'User switched to sender');
+            }}
+          />
+        ) : activeTransfer ? (
+          /* ============================================================ */
+          /* VIEW 3: COMPLETED / FINISHED TRANSFER CARD                   */
+          /* Displayed only when there is no new incoming offer waiting   */
+          /* ============================================================ */
           <div className="space-y-4 animate-fade-in">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center space-x-2">
@@ -812,11 +887,7 @@ export default function Home() {
                   className={`w-1.5 h-1.5 rounded-full ${
                     activeTransfer.status === 'COMPLETED'
                       ? 'bg-emerald-400'
-                      : activeTransfer.status === 'CANCELLED' ||
-                        activeTransfer.status === 'FAILED' ||
-                        activeTransfer.status === 'REJECTED'
-                      ? 'bg-rose-400'
-                      : 'bg-cyan-400 animate-pulse'
+                      : 'bg-rose-400'
                   }`}
                 />
                 <span className="text-xs uppercase font-medium tracking-wider text-zinc-400">
@@ -826,34 +897,23 @@ export default function Home() {
                     ? 'Transfer Cancelled'
                     : activeTransfer.status === 'REJECTED'
                     ? 'Transfer Declined'
-                    : activeTransfer.status === 'FAILED'
-                    ? 'Transfer Interrupted'
-                    : activeTransfer.status === 'OFFERED'
-                    ? 'Waiting for Recipient'
-                    : activeTransfer.role === 'sender'
-                    ? 'Streaming to Peer'
-                    : 'Receiving from Peer'}
+                    : 'Transfer Interrupted'}
                 </span>
               </div>
 
-              {(activeTransfer.status === 'COMPLETED' ||
-                activeTransfer.status === 'CANCELLED' ||
-                activeTransfer.status === 'FAILED' ||
-                activeTransfer.status === 'REJECTED') && (
-                <button
-                  onClick={() => {
-                    setActiveTransfer(null);
-                    setStagedShare(null);
-                    pendingFileRef.current = null;
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-xs font-medium text-white flex items-center space-x-1.5 transition-all border border-white/[0.1] shadow-sm active:scale-95"
-                >
-                  <PlusCircle className="w-3.5 h-3.5 text-zinc-300" />
-                  <span>
-                    {activeTransfer.status === 'COMPLETED' ? 'Send Another' : 'Back to Canvas'}
-                  </span>
-                </button>
-              )}
+              <button
+                onClick={() => {
+                  setActiveTransfer(null);
+                  setStagedShare(null);
+                  pendingFileRef.current = null;
+                }}
+                className="px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-xs font-medium text-white flex items-center space-x-1.5 transition-all border border-white/[0.1] shadow-sm active:scale-95"
+              >
+                <PlusCircle className="w-3.5 h-3.5 text-zinc-300" />
+                <span>
+                  {activeTransfer.status === 'COMPLETED' ? 'Send Another' : 'Back to Canvas'}
+                </span>
+              </button>
             </div>
 
             <TransferCard
@@ -895,18 +955,6 @@ export default function Home() {
               </div>
             )}
           </div>
-        ) : incomingOffer && incomingOffer.status === 'OFFERED' ? (
-          /* ============================================================ */
-          /* VIEW 2: DEDICATED AIRDROP-STYLE MOBILE/WEB RECEIVER VIEW     */
-          /* ============================================================ */
-          <ReceiverView
-            offer={incomingOffer}
-            onAccept={handleAcceptOffer}
-            onReject={handleRejectOffer}
-            onSwitchToSender={() => {
-              handleRejectOffer(incomingOffer, 'User switched to sender');
-            }}
-          />
         ) : stagedShare ? (
           /* ============================================================ */
           /* VIEW 3: DROP-FIRST "READY TO SHARE" HERO STAGE              */
