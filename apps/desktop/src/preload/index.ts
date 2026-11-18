@@ -8,10 +8,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getWsUrl: () => ipcRenderer.sendSync('server:getWsUrl'),
   getAppVersion: () => ipcRenderer.sendSync('app:getVersion'),
   getDeviceName: () => ipcRenderer.sendSync('system:getDeviceName'),
-  getDefaultSaveDir: () => ipcRenderer.sendSync('system:getDefaultSaveDir'),
   openDownloadsFolder: () => ipcRenderer.invoke('shell:openDownloads'),
-  chooseSavePath: (defaultFilename: string) => ipcRenderer.invoke('dialog:chooseSavePath', defaultFilename),
-  setPreselectedSavePath: (savePath: string | null) => ipcRenderer.invoke('transfer:setPreselectedSavePath', savePath),
   setTaskbarProgress: (progress: number) => ipcRenderer.invoke('app:setProgress', progress),
   onDownloadProgress: (callback: (data: any) => void) => {
     const handler = (_event: any, val: any) => callback(val);

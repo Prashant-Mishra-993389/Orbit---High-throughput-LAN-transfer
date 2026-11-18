@@ -97,49 +97,12 @@ async function bootstrapApp() {
     }
   });
 
-  let preselectedSavePath: string | null = null;
-
-  ipcMain.on('system:getDefaultSaveDir', (event: any) => {
-    const defaultDownloads = path.join(os.homedir(), 'Downloads', 'Orbit');
-    if (!fs.existsSync(defaultDownloads)) {
-      fs.mkdirSync(defaultDownloads, { recursive: true });
-    }
-    event.returnValue = defaultDownloads;
-  });
-
-  ipcMain.handle('transfer:setPreselectedSavePath', (_event: any, savePath: string | null) => {
-    preselectedSavePath = savePath;
-    return true;
-  });
-
-  ipcMain.handle('dialog:chooseSavePath', async (_event: any, defaultFilename: string) => {
-    if (!mainWindow || mainWindow.isDestroyed()) return null;
-    const defaultDownloads = path.join(os.homedir(), 'Downloads', 'Orbit');
-    if (!fs.existsSync(defaultDownloads)) {
-      fs.mkdirSync(defaultDownloads, { recursive: true });
-    }
-    const defaultFilePath = path.join(defaultDownloads, defaultFilename || 'download');
-
-    const result = await dialog.showSaveDialog(mainWindow, {
-      title: 'Choose Save Location',
-      defaultPath: defaultFilePath,
-      properties: ['showOverwriteConfirmation'],
-    });
-
-    if (result.canceled || !result.filePath) {
-      return null;
-    }
-
-    preselectedSavePath = result.filePath;
-    return result.filePath;
-  });
-
   ipcMain.handle('shell:openDownloads', async () => {
-    const downloadsPath = path.join(os.homedir(), 'Downloads', 'Orbit');
-    if (!fs.existsSync(downloadsPath)) {
-      fs.mkdirSync(downloadsPath, { recursive: true });
+    const defaultDownloads = path.join(app.getPath('downloads'), 'Orbit');
+    if (!fs.existsSync(defaultDownloads)) {
+      fs.mkdirSync(defaultDownloads, { recursive: true });
     }
-    await shell.openPath(downloadsPath);
+    await shell.openPath(defaultDownloads);
   });
 
   // 3. Create Main Browser Window (Expansive Desktop Aspect Ratio)
@@ -161,45 +124,14 @@ async function bootstrapApp() {
   });
 
   // Register native download handler for streaming downloads in Electron
+  // Automatically saves all incoming files directly to the system Downloads/Orbit folder
   mainWindow.webContents.session.on('will-download', (_event: any, item: any) => {
-    const defaultDownloads = path.join(os.homedir(), 'Downloads', 'Orbit');
+    const defaultDownloads = path.join(app.getPath('downloads'), 'Orbit');
     if (!fs.existsSync(defaultDownloads)) {
       fs.mkdirSync(defaultDownloads, { recursive: true });
     }
-    const defaultFilePath = path.join(defaultDownloads, item.getFilename());
-
-    let saveFilePath: string | null = null;
-
-    if (preselectedSavePath === 'DEFAULT_DOWNLOADS') {
-      // User explicitly picked default Downloads folder
-      saveFilePath = defaultFilePath;
-      preselectedSavePath = null;
-    } else if (preselectedSavePath) {
-      // User pre-selected custom location in UI
-      saveFilePath = preselectedSavePath;
-      preselectedSavePath = null;
-    } else {
-      // Prompt user with native OS Save Dialog if not preselected
-      const chosenPath = dialog.showSaveDialogSync(mainWindow!, {
-        title: 'Save Received File',
-        defaultPath: defaultFilePath,
-        properties: ['showOverwriteConfirmation'],
-      });
-
-      if (!chosenPath) {
-        item.cancel();
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('download:failed', {
-            filename: item.getFilename(),
-            state: 'cancelled',
-          });
-        }
-        return;
-      }
-      saveFilePath = chosenPath;
-    }
-
-    const targetExtractDir = path.dirname(saveFilePath);
+    const saveFilePath = path.join(defaultDownloads, item.getFilename());
+    const targetExtractDir = defaultDownloads;
     item.setSavePath(saveFilePath);
 
     let lastBytes = 0;
