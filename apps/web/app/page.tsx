@@ -47,6 +47,7 @@ import {
   QrCode,
   Wifi,
   Sparkles,
+  UploadCloud,
 } from 'lucide-react';
 
 export default function Home() {
@@ -699,7 +700,16 @@ export default function Home() {
         }}
       />
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col justify-center">
+      <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col justify-center">
+        {/* Full-Viewport Drag & Drop Overlay */}
+        {isDropOver && (
+          <div className="fixed inset-0 z-50 pointer-events-none border-2 border-white/30 bg-black/40 backdrop-blur-[2px] flex items-center justify-center animate-fade-in">
+            <div className="p-4 rounded-xl bg-obsidian-card border border-white/20 shadow-2xl flex items-center space-x-3 text-zinc-100 font-semibold text-sm">
+              <UploadCloud className="w-5 h-5 text-white animate-bounce" />
+              <span>Drop anywhere to transfer immediately</span>
+            </div>
+          </div>
+        )}
         {/* ============================================================ */}
         {/* VIEW 1: ACTIVE LIVE TRANSFER IN PROGRESS OR COMPLETED        */}
         {/* ============================================================ */}

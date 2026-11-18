@@ -40,7 +40,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <header className="border-b border-white/[0.08] bg-obsidian-void/90 backdrop-blur-md sticky top-0 z-40 transition-colors">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between">
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between">
         {/* Brand */}
         <div className="flex items-center space-x-2.5">
           <div className="w-6 h-6 rounded-md bg-white/[0.08] border border-white/[0.12] flex items-center justify-center text-white shadow-sm">
