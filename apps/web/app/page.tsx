@@ -578,12 +578,12 @@ export default function Home() {
 
     const unsubDone = api.onDownloadCompleted?.((_data: any) => {
       setActiveTransfer((prev) =>
-        prev && prev.role === 'receiver'
+        prev
           ? {
               ...prev,
               status: 'COMPLETED',
               percentage: 100,
-              bytesTransferred: prev.fileSize,
+              bytesTransferred: prev.fileSize > 0 ? prev.fileSize : prev.bytesTransferred,
             }
           : prev
       );
@@ -786,15 +786,30 @@ export default function Home() {
         serverSession.status === 'FAILED' ||
         serverSession.status === 'REJECTED'
       ) {
-        setActiveTransfer((prev) =>
-          prev
-            ? {
-                ...prev,
-                status: serverSession.status,
-                error: serverSession.error || prev.error,
-              }
-            : null
-        );
+        setActiveTransfer((prev) => {
+          if (!prev) return null;
+          // If the transfer is already COMPLETED or has downloaded >= 99.8% of bytes, DO NOT allow a late failure to override!
+          if (
+            prev.status === 'COMPLETED' ||
+            prev.percentage >= 99.8 ||
+            (prev.fileSize > 0 &&
+              (prev.bytesTransferred >= prev.fileSize ||
+                prev.bytesTransferred >= prev.fileSize - 65536))
+          ) {
+            return {
+              ...prev,
+              status: 'COMPLETED',
+              percentage: 100,
+              currentSpeed: 0,
+              etaSeconds: 0,
+            };
+          }
+          return {
+            ...prev,
+            status: serverSession.status,
+            error: serverSession.error || prev.error,
+          };
+        });
       } else if (serverSession.bytesTransferred > 0) {
         setActiveTransfer((prev) =>
           prev

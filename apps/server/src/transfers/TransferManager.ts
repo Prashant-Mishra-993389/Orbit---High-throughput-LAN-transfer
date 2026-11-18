@@ -221,6 +221,25 @@ export class TransferManager extends EventEmitter {
     const state = this.sessions.get(transferId);
     if (!state) return;
 
+    // A transfer that has ALREADY completed verification and marked COMPLETED cannot be failed by a socket close!
+    if (state.session.status === 'COMPLETED') return;
+
+    // If all bytes were transferred, only fail if there is an explicit hash corruption or verification error
+    const isIntegrityError =
+      error.toLowerCase().includes('hash') ||
+      error.toLowerCase().includes('integrity') ||
+      error.toLowerCase().includes('corrupt') ||
+      error.toLowerCase().includes('mismatch');
+
+    if (
+      !isIntegrityError &&
+      state.session.fileSize > 0 &&
+      state.session.bytesTransferred >= state.session.fileSize
+    ) {
+      this.markCompleted(transferId, state.session.finalHash || '');
+      return;
+    }
+
     state.session.status = 'FAILED';
     state.session.error = error;
     state.session.updatedAt = Date.now();

@@ -8,8 +8,8 @@
   "scripts": {
     "build": "tsc && tsc -p tsconfig.preload.json",
     "dev": "tsc && tsc -p tsconfig.preload.json && electron .",
-    "package:win": "npm run build && electron-builder --win --x64",
-    "package:portable": "npm run build && electron-builder --win portable --x64",
+    "package:win": "electron-builder --win --x64",
+    "package:portable": "electron-builder --win portable --x64",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.preload.json --noEmit"
   },
   "dependencies": {

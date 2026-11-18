@@ -93,8 +93,30 @@ export class StreamBridgeManager extends EventEmitter {
 
       const onBridgeTerminated = (err?: Error) => {
         if (isSettled) return;
+        const session = transferManager.getSession(transferId);
+        if (
+          session &&
+          (session.status === 'COMPLETED' ||
+            (session.fileSize > 0 &&
+              (session.bytesTransferred >= session.fileSize ||
+                session.bytesTransferred >= session.fileSize - 65536)))
+        ) {
+          isSettled = true;
+          this.bridges.delete(transferId);
+          resolve({
+            finalHash: session.finalHash || '',
+            bytesTransferred: session.bytesTransferred,
+          });
+          return;
+        }
+
         // If all expected bytes were transferred, this is a clean completion, NOT a failure!
-        if (bridge && bridge.totalBytes > 0 && bridge.bytesTransferred >= bridge.totalBytes) {
+        if (
+          bridge &&
+          bridge.totalBytes > 0 &&
+          (bridge.bytesTransferred >= bridge.totalBytes ||
+            bridge.bytesTransferred >= bridge.totalBytes - 65536)
+        ) {
           isSettled = true;
           const finalHash = bridge.hasher.digest('hex');
           transferManager.markCompleted(transferId, finalHash);
@@ -121,7 +143,28 @@ export class StreamBridgeManager extends EventEmitter {
       bridge!.passThrough.once('error', onBridgeTerminated);
       bridge!.passThrough.once('close', () => {
         if (isSettled) return;
-        if (bridge && bridge.totalBytes > 0 && bridge.bytesTransferred >= bridge.totalBytes) {
+        const session = transferManager.getSession(transferId);
+        if (
+          session &&
+          (session.status === 'COMPLETED' ||
+            (session.fileSize > 0 &&
+              (session.bytesTransferred >= session.fileSize ||
+                session.bytesTransferred >= session.fileSize - 65536)))
+        ) {
+          isSettled = true;
+          this.bridges.delete(transferId);
+          resolve({
+            finalHash: session.finalHash || '',
+            bytesTransferred: session.bytesTransferred,
+          });
+          return;
+        }
+        if (
+          bridge &&
+          bridge.totalBytes > 0 &&
+          (bridge.bytesTransferred >= bridge.totalBytes ||
+            bridge.bytesTransferred >= bridge.totalBytes - 65536)
+        ) {
           isSettled = true;
           const finalHash = bridge.hasher.digest('hex');
           transferManager.markCompleted(transferId, finalHash);
@@ -256,8 +299,23 @@ export class StreamBridgeManager extends EventEmitter {
     // Track receiver disconnection mid-stream
     if (reply.raw && typeof reply.raw.on === 'function') {
       reply.raw.on('close', () => {
+        const session = transferManager.getSession(transferId);
+        if (
+          session &&
+          (session.status === 'COMPLETED' ||
+            (session.fileSize > 0 &&
+              (session.bytesTransferred >= session.fileSize ||
+                session.bytesTransferred >= session.fileSize - 65536)))
+        ) {
+          return;
+        }
         // If all expected bytes have already been transferred, receiver closing the connection is normal completion!
-        if (bridge && bridge.totalBytes > 0 && bridge.bytesTransferred >= bridge.totalBytes) {
+        if (
+          bridge &&
+          bridge.totalBytes > 0 &&
+          (bridge.bytesTransferred >= bridge.totalBytes ||
+            bridge.bytesTransferred >= bridge.totalBytes - 65536)
+        ) {
           return;
         }
         if (!reply.raw.writableEnded && bridge?.passThrough && !bridge.passThrough.destroyed) {

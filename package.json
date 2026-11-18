@@ -14,8 +14,8 @@
     "dev:desktop": "npm run dev --workspace=@sharelan/desktop",
     "dev": "npm run dev --workspace=@sharelan/server",
     "build": "npm run build --workspaces --if-present",
-    "package:win": "npm run package:win --workspace=@sharelan/desktop",
-    "package:portable": "npm run package:portable --workspace=@sharelan/desktop",
+    "package:win": "npm run build && npm run package:win --workspace=@sharelan/desktop",
+    "package:portable": "npm run build && npm run package:portable --workspace=@sharelan/desktop",
     "test": "npm run test --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test:generate-file": "node scripts/generate-test-file.js"

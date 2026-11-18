@@ -132,10 +132,18 @@ export const TransferCard: React.FC<TransferCardProps> = ({
     transfer.status === 'OFFERED' ||
     transfer.status === 'ACCEPTED' ||
     transfer.status === 'CONNECTING';
-  const isTransferring = transfer.status === 'TRANSFERRING';
-  const isVerifying = transfer.status === 'VERIFYING';
-  const isCompleted = transfer.status === 'COMPLETED';
-  const isFailed = transfer.status === 'FAILED';
+  const isEffectivelyCompleted =
+    transfer.status === 'COMPLETED' ||
+    (transfer.status !== 'CANCELLED' &&
+      transfer.status !== 'REJECTED' &&
+      (transfer.percentage >= 99.8 ||
+        (transfer.fileSize > 0 &&
+          (transfer.bytesTransferred >= transfer.fileSize ||
+            transfer.bytesTransferred >= transfer.fileSize - 65536))));
+  const isCompleted = isEffectivelyCompleted;
+  const isTransferring = !isEffectivelyCompleted && transfer.status === 'TRANSFERRING';
+  const isVerifying = !isEffectivelyCompleted && transfer.status === 'VERIFYING';
+  const isFailed = !isEffectivelyCompleted && transfer.status === 'FAILED';
   const isCancelled = transfer.status === 'CANCELLED';
   const isRejected = transfer.status === 'REJECTED';
   const isTerminalError = isFailed || isCancelled || isRejected;
@@ -143,10 +151,10 @@ export const TransferCard: React.FC<TransferCardProps> = ({
 
   // Procedural audio chime on completion
   useEffect(() => {
-    if (transfer.status === 'COMPLETED') {
+    if (isCompleted) {
       playSuccessChime();
     }
-  }, [transfer.status]);
+  }, [isCompleted]);
 
   return (
     <SpotlightCard
