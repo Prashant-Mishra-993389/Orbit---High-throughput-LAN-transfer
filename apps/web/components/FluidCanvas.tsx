@@ -19,7 +19,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { packageFilesIntoTar, ScannedFile } from '../lib/folder';
-import { isHotspotSubnet } from '../lib/network';
+import { isHotspotSubnet, isCampusOrIsolatedSubnet } from '../lib/network';
 
 interface FluidCanvasProps {
   clientName: string;
@@ -73,8 +73,9 @@ export function FluidCanvas({
   const [hoveredDeviceId, setHoveredDeviceId] = useState<string | null>(null);
   const [isProbing, setIsProbing] = useState(false);
 
-  // Check if current network is a mobile phone hotspot
+  // Check if current network is a mobile phone hotspot or campus network
   const isHotspot = isHotspotSubnet(diagnostics?.localIp);
+  const isCampus = isCampusOrIsolatedSubnet(diagnostics?.localIp);
 
   // Exclude self from nearby devices list
   const activeDevices = nearbyDevices.filter(
@@ -170,11 +171,15 @@ export function FluidCanvas({
         ) : (
           <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-obsidian-card/70 border border-white/[0.06] backdrop-blur-md shadow-sm">
             <span className="flex h-2 w-2 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500" />
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${isCampus ? 'bg-amber-400' : 'bg-cyan-400'} opacity-75`} />
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${isCampus ? 'bg-amber-500' : 'bg-cyan-500'}`} />
             </span>
             <span className="text-xs text-warm-bone font-medium">
-              {isHotspot ? '⚡ Phone Hotspot Direct Beam' : 'Local Wi-Fi Network'}
+              {isHotspot
+                ? '⚡ Phone Hotspot Direct Beam'
+                : isCampus
+                ? '🎓 LPU / Campus Wi-Fi'
+                : 'Local Wi-Fi Network'}
             </span>
             <span className="text-white/20">•</span>
             <span className="text-xs text-warm-sand/80 font-mono">
@@ -182,6 +187,8 @@ export function FluidCanvas({
                 ? `${activeDevices.length} ${activeDevices.length === 1 ? 'laptop' : 'laptops'} online`
                 : isHotspot
                 ? '~85+ MB/s'
+                : isCampus
+                ? 'AP-Isolation Active'
                 : 'Searching peers'}
             </span>
           </div>
@@ -222,6 +229,32 @@ export function FluidCanvas({
                 </li>
               </ol>
             </div>
+
+            {isCampus && (
+              <div className="w-full p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/25 shadow-lg text-left space-y-2 backdrop-blur-md animate-fade-in">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-1.5 text-xs font-bold text-amber-300">
+                    <span>🎓 LPU Campus Isolation Detected</span>
+                  </div>
+                  <span className="text-[10px] font-mono uppercase bg-amber-500/20 px-2 py-0.5 rounded-full text-amber-200">
+                    Hostel Wi-Fi
+                  </span>
+                </div>
+                <p className="text-[11px] text-warm-sand leading-relaxed">
+                  LPU routers block direct device-to-device ping. For <strong className="text-white font-semibold">85+ MB/s</strong>, turn on a laptop/phone hotspot, or pair with a 6-digit code.
+                </p>
+                <div className="flex items-center space-x-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => onOpenPairing('create')}
+                    className="flex-1 py-1.5 px-3 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-200 text-xs font-bold transition-all border border-amber-500/30 flex items-center justify-center space-x-1.5 active:scale-95"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                    <span>6-Digit Code Pairing</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
             {onSweepPeers && (
               <button
