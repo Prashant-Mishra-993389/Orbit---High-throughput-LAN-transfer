@@ -39,28 +39,25 @@ export const Navbar: React.FC<NavbarProps> = ({
   };
 
   return (
-    <header className="border-b border-white/[0.04] bg-obsidian-void/70 backdrop-blur-2xl sticky top-0 z-40 transition-colors">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+    <header className="border-b border-white/[0.08] bg-obsidian-void/90 backdrop-blur-md sticky top-0 z-40 transition-colors">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 h-12 flex items-center justify-between">
         {/* Brand */}
         <div className="flex items-center space-x-2.5">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 via-cyan-500 to-emerald-400 flex items-center justify-center shadow-md shadow-blue-500/10">
-            <Laptop className="w-4 h-4 text-slate-950 font-bold" />
+          <div className="w-6 h-6 rounded-md bg-white/[0.08] border border-white/[0.12] flex items-center justify-center text-white shadow-sm">
+            <span className="font-bold text-[11px] font-mono tracking-tighter">O</span>
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <span className="text-sm font-bold tracking-tight text-warm-bone">Orbit</span>
-              <span className="flex h-2 w-2 relative">
+              <span className="text-xs font-semibold tracking-tight text-zinc-100">Orbit</span>
+              <span className="flex h-1.5 w-1.5 relative">
                 {isConnected ? (
-                  <>
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-                  </>
+                  <span className="rounded-full h-1.5 w-1.5 bg-emerald-400"></span>
                 ) : (
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+                  <span className="rounded-full h-1.5 w-1.5 bg-rose-500"></span>
                 )}
               </span>
               {diagnostics?.localIp && diagnostics.localIp !== '127.0.0.1' && (
-                <span className="hidden sm:inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-mono text-cyan-300 bg-cyan-500/10 border border-cyan-500/20">
+                <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-400 bg-white/[0.04] border border-white/[0.06]">
                   <span>{diagnostics.localIp}</span>
                 </span>
               )}
@@ -69,10 +66,10 @@ export const Navbar: React.FC<NavbarProps> = ({
         </div>
 
         {/* Device Identity, Diagnostics & Settings */}
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-1.5">
           {/* My Device Name Badge */}
-          <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-obsidian-card border border-white/[0.08] text-xs text-warm-sand">
-            <span className="text-warm-stone">You:</span>
+          <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-white/[0.03] border border-white/[0.08] text-xs text-zinc-400">
+            <span className="text-zinc-500 text-[11px]">Device:</span>
             {isEditingName ? (
               <div className="flex items-center space-x-1">
                 <input
@@ -80,23 +77,23 @@ export const Navbar: React.FC<NavbarProps> = ({
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleSaveName()}
-                  className="w-24 px-1 py-0.5 bg-obsidian-hover text-warm-bone rounded text-xs border border-cyan-400 focus:outline-none"
+                  className="w-24 px-1 py-0.5 bg-obsidian-hover text-zinc-100 rounded text-xs border border-white/30 focus:outline-none"
                   autoFocus
                 />
                 <button onClick={handleSaveName} className="text-emerald-400 hover:text-emerald-300">
-                  <Check className="w-3.5 h-3.5" />
+                  <Check className="w-3 h-3" />
                 </button>
               </div>
             ) : (
               <div
                 onClick={() => setIsEditingName(true)}
-                className="flex items-center space-x-1 cursor-pointer hover:text-warm-bone group"
+                className="flex items-center space-x-1 cursor-pointer hover:text-zinc-200 group"
                 title="Click to rename device"
               >
-                <span suppressHydrationWarning className="font-semibold text-warm-bone truncate max-w-[110px] sm:max-w-none">
+                <span suppressHydrationWarning className="font-medium text-zinc-200 truncate max-w-[110px] sm:max-w-none">
                   {session.clientName}
                 </span>
-                <Edit2 className="w-3 h-3 text-warm-stone group-hover:text-cyan-400" />
+                <Edit2 className="w-2.5 h-2.5 text-zinc-500 group-hover:text-zinc-300" />
               </div>
             )}
           </div>
@@ -105,12 +102,12 @@ export const Navbar: React.FC<NavbarProps> = ({
           {onOpenHistory && (
             <button
               onClick={onOpenHistory}
-              className="relative p-2 rounded-xl bg-obsidian-card hover:bg-obsidian-hover border border-white/[0.08] text-warm-sand hover:text-warm-bone transition-colors"
+              className="relative p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05] transition-colors"
               title="Transfer History"
             >
-              <Clock className="w-4 h-4 text-cyan-400" />
+              <Clock className="w-4 h-4" />
               {historyCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-cyan-500 text-[9px] font-bold text-slate-950 flex items-center justify-center shadow-sm">
+                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-white text-[9px] font-bold text-zinc-950 flex items-center justify-center">
                   {historyCount}
                 </span>
               )}
@@ -120,20 +117,20 @@ export const Navbar: React.FC<NavbarProps> = ({
           {/* Network diagnostics button */}
           <button
             onClick={onOpenBenchmark}
-            className="p-2 rounded-xl bg-obsidian-card hover:bg-obsidian-hover border border-white/[0.08] text-warm-sand hover:text-warm-bone transition-colors"
-            title="Network Info & Throughput Benchmark"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05] transition-colors"
+            title="Network Info & Benchmark"
           >
-            <Activity className="w-4 h-4 text-cyan-400" />
+            <Activity className="w-4 h-4" />
           </button>
 
           {/* Settings button */}
           {onOpenSettings && (
             <button
               onClick={onOpenSettings}
-              className="p-2 rounded-xl bg-obsidian-card hover:bg-obsidian-hover border border-white/[0.08] text-warm-sand hover:text-warm-bone transition-colors"
+              className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-200 hover:bg-white/[0.05] transition-colors"
               title="Settings"
             >
-              <Settings className="w-4 h-4 text-warm-sand hover:text-warm-bone" />
+              <Settings className="w-4 h-4" />
             </button>
           )}
         </div>

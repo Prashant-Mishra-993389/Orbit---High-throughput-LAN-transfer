@@ -158,37 +158,37 @@ export const PairingModal: React.FC<PairingModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-fade-in">
-      <div className="relative w-full max-w-md rounded-3xl bg-obsidian-card/95 border border-white/[0.08] p-6 shadow-2xl space-y-6 backdrop-blur-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-full max-w-md rounded-xl bg-obsidian-card border border-white/[0.08] p-6 shadow-2xl space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400">
-              <KeyRound className="w-5 h-5" />
+            <div className="w-8 h-8 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-zinc-300">
+              <KeyRound className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-semibold text-white">Out-of-Band Pairing</h3>
-              <p className="text-xs text-slate-400">Works on Hostel Wi-Fi with client isolation</p>
+              <h3 className="text-sm font-semibold text-zinc-100">6-Digit Code Pairing</h3>
+              <p className="text-xs text-zinc-400">Direct link across isolated networks & subnets</p>
             </div>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+            className="p-1 rounded-md text-zinc-400 hover:text-white hover:bg-white/[0.05] transition-colors"
           >
-            <X className="w-5 h-5" />
+            <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Tab switcher */}
-        <div className="grid grid-cols-2 p-1 bg-surface-200 rounded-2xl border border-white/5">
+        <div className="grid grid-cols-2 p-0.5 bg-black/40 rounded-lg border border-white/[0.08]">
           <button
             type="button"
             onClick={() => setTab('create')}
-            className={`py-2 text-xs font-semibold rounded-xl transition-all ${
+            className={`py-1.5 text-xs font-medium rounded-md transition-all ${
               tab === 'create'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-white/[0.1] text-white shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             Show My Code
@@ -196,10 +196,10 @@ export const PairingModal: React.FC<PairingModalProps> = ({
           <button
             type="button"
             onClick={() => setTab('join')}
-            className={`py-2 text-xs font-semibold rounded-xl transition-all ${
+            className={`py-1.5 text-xs font-medium rounded-md transition-all ${
               tab === 'join'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'text-slate-400 hover:text-slate-200'
+                ? 'bg-white/[0.1] text-white shadow-sm'
+                : 'text-zinc-400 hover:text-zinc-200'
             }`}
           >
             Enter 6-Digit Code
@@ -209,43 +209,43 @@ export const PairingModal: React.FC<PairingModalProps> = ({
         {/* Tab 1: Create / Show Code */}
         {tab === 'create' && (
           <div className="space-y-4 text-center">
-            <div className="p-6 rounded-2xl bg-surface-100/60 border border-white/5 space-y-3">
-              <span className="text-xs font-medium text-slate-400 block uppercase tracking-wider">
+            <div className="p-5 rounded-lg bg-obsidian-base border border-white/[0.06] space-y-2.5">
+              <span className="text-[11px] font-medium text-zinc-500 block uppercase tracking-wider">
                 Pairing Code
               </span>
 
               {isGenerating ? (
-                <div className="flex items-center justify-center space-x-2 py-4">
-                  <Loader2 className="w-6 h-6 animate-spin text-cyan-400" />
-                  <span className="text-sm text-slate-300">Generating code...</span>
+                <div className="flex items-center justify-center space-x-2 py-3">
+                  <Loader2 className="w-4 h-4 animate-spin text-zinc-400" />
+                  <span className="text-xs text-zinc-400">Generating code...</span>
                 </div>
               ) : (
                 <div className="flex items-center justify-center space-x-3">
-                  <span className="font-mono text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-teal-300 tracking-wider">
+                  <span className="font-mono text-2xl font-bold text-white tracking-widest">
                     {generatedCode || '--- ---'}
                   </span>
                   <button
                     onClick={handleCopy}
-                    className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+                    className="p-1.5 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-zinc-300 hover:text-white transition-colors border border-white/[0.08]"
                     title="Copy code"
                   >
                     {copied ? (
-                      <Check className="w-4 h-4 text-emerald-400" />
+                      <Check className="w-3.5 h-3.5 text-emerald-400" />
                     ) : (
-                      <Copy className="w-4 h-4" />
+                      <Copy className="w-3.5 h-3.5" />
                     )}
                   </button>
                 </div>
               )}
 
-              <p className="text-[11px] text-slate-400">
-                Enter this 6-digit code on the other laptop to link directly.
+              <p className="text-[11px] text-zinc-500">
+                Enter this 6-digit code on the other device to link directly.
               </p>
             </div>
 
-            <div className="flex items-center justify-center space-x-2 text-xs text-cyan-400/80 animate-pulse">
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              <span>Waiting for other laptop to connect...</span>
+            <div className="flex items-center justify-center space-x-2 text-xs text-zinc-400">
+              <Loader2 className="w-3 h-3 animate-spin text-zinc-500" />
+              <span>Listening for incoming connection...</span>
             </div>
           </div>
         )}
@@ -253,8 +253,8 @@ export const PairingModal: React.FC<PairingModalProps> = ({
         {/* Tab 2: Join / Enter Code */}
         {tab === 'join' && (
           <form onSubmit={handleJoin} className="space-y-4">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300">
+            <div className="space-y-1.5 text-left">
+              <label className="text-xs font-medium text-zinc-300">
                 Enter 6-Digit Code from Peer
               </label>
               <input
@@ -263,13 +263,13 @@ export const PairingModal: React.FC<PairingModalProps> = ({
                 onChange={(e) => setInputCode(e.target.value)}
                 placeholder="e.g. 482-195"
                 maxLength={7}
-                className="w-full px-4 py-3 rounded-2xl bg-surface-200 border border-white/10 text-white placeholder-slate-500 font-mono text-lg text-center tracking-widest focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-500/20"
+                className="w-full px-3 py-2.5 rounded-lg bg-obsidian-base border border-white/[0.08] text-white placeholder-zinc-600 font-mono text-base text-center tracking-widest focus:outline-none focus:border-white/30"
                 autoFocus
               />
             </div>
 
             {joinError && (
-              <p className="text-xs text-rose-400 font-medium bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">
+              <p className="text-xs text-rose-400 font-medium bg-rose-500/10 p-2.5 rounded-lg border border-rose-500/20 text-left">
                 {joinError}
               </p>
             )}
@@ -277,28 +277,25 @@ export const PairingModal: React.FC<PairingModalProps> = ({
             <button
               type="submit"
               disabled={isJoining || !inputCode.trim()}
-              className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold text-sm hover:from-blue-500 hover:to-cyan-400 transition-all flex items-center justify-center space-x-2 disabled:opacity-50 shadow-lg shadow-cyan-500/20"
+              className="w-full py-2.5 rounded-lg bg-white text-zinc-950 font-medium text-xs hover:bg-zinc-200 transition-all flex items-center justify-center space-x-1.5 disabled:opacity-40 shadow-sm"
             >
               {isJoining ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
                   <span>Connecting...</span>
                 </>
               ) : (
-                <>
-                  <Sparkles className="w-4 h-4" />
-                  <span>Connect & Pair</span>
-                </>
+                <span>Connect & Pair</span>
               )}
             </button>
           </form>
         )}
 
         {/* Security & Transport Note */}
-        <div className="pt-2 border-t border-white/5 flex items-center space-x-2 text-[11px] text-slate-500">
-          <ShieldCheck className="w-4 h-4 text-emerald-400/70 flex-shrink-0" />
+        <div className="pt-2 border-t border-white/[0.06] flex items-center space-x-2 text-[11px] text-zinc-500">
+          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400/80 flex-shrink-0" />
           <span>
-            Zero-Disk Streaming Relay automatically activates if hostel AP isolation blocks LAN packets.
+            Zero-Disk in-memory stream activates automatically if network AP isolation blocks direct LAN packets.
           </span>
         </div>
       </div>

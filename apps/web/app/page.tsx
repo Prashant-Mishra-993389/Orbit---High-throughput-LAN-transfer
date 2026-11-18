@@ -684,7 +684,7 @@ export default function Home() {
   }, [transfers, activeTransfer]);
 
   return (
-    <div className="min-h-screen flex flex-col bg-canvas-atmosphere text-warm-bone selection:bg-cyan-500/20 selection:text-cyan-200">
+    <div className="min-h-screen flex flex-col bg-canvas-atmosphere text-warm-bone selection:bg-white/10 selection:text-white">
       <Navbar
         session={session}
         isConnected={isConnected}
@@ -706,8 +706,8 @@ export default function Home() {
           <div className="space-y-4 animate-fade-in">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center space-x-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
-                <span className="text-xs uppercase font-bold tracking-wider text-slate-300">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                <span className="text-xs uppercase font-medium tracking-wider text-zinc-400">
                   {activeTransfer.status === 'COMPLETED'
                     ? 'Transfer Complete'
                     : activeTransfer.status === 'OFFERED'
@@ -724,10 +724,10 @@ export default function Home() {
                     setActiveTransfer(null);
                     setStagedShare(null);
                   }}
-                  className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold text-white flex items-center space-x-1.5 transition-all shadow-sm"
+                  className="px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-xs font-medium text-white flex items-center space-x-1.5 transition-all border border-white/[0.1] shadow-sm"
                 >
-                  <PlusCircle className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>Send Another File</span>
+                  <PlusCircle className="w-3.5 h-3.5 text-zinc-300" />
+                  <span>Send Another</span>
                 </button>
               )}
             </div>
@@ -735,18 +735,18 @@ export default function Home() {
             <TransferCard transfer={activeTransfer} onCancel={handleCancelTransfer} />
 
             {activeTransfer.status === 'COMPLETED' && (
-              <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 text-center space-y-2 text-xs">
-                <div className="flex items-center justify-center space-x-1.5 text-emerald-400 font-bold">
-                  <FileCheck2 className="w-4 h-4" />
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.08] text-center space-y-1 text-xs">
+                <div className="flex items-center justify-center space-x-1.5 text-zinc-200 font-medium">
+                  <FileCheck2 className="w-4 h-4 text-emerald-400" />
                   <span>
                     {activeTransfer.role === 'sender'
-                      ? 'Streamed directly from original location'
-                      : 'File saved directly to your device'}
+                      ? 'Streamed directly from source'
+                      : 'File saved directly to disk'}
                   </span>
                 </div>
-                <p className="text-slate-400">
+                <p className="text-zinc-500 text-[11px]">
                   {activeTransfer.role === 'sender'
-                    ? 'Zero duplicate files or uploads were created on your computer.'
+                    ? 'Zero intermediate duplicate copies were created on your computer.'
                     : 'Bit-for-bit SHA-256 hash verified successfully.'}
                 </p>
               </div>

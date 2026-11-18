@@ -7,34 +7,35 @@
 }
 
 body {
-  background-color: #0b0c10;
-  color: #f4f3ef;
-  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #09090b;
+  color: #f4f4f5;
+  font-family: -apple-system, BlinkMacSystemFont, 'Inter', 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
   overflow-x: hidden;
   letter-spacing: -0.011em;
 }
 
-/* Atmospheric Ambient Background */
+/* Precision Engineering Background (Linear-grade micro-grid) */
 .bg-canvas-atmosphere {
-  background-color: #0b0c10;
-  background-image: radial-gradient(circle at 50% -10%, rgba(59, 130, 246, 0.08) 0%, transparent 55%),
-                    radial-gradient(circle at 50% 110%, rgba(16, 185, 129, 0.05) 0%, transparent 50%);
+  background-color: #09090b;
+  background-image: linear-gradient(to right, rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
 
-/* Custom slick scrollbars */
+/* Custom minimal scrollbar */
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #0b0c10;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e2029;
+  background: #27272a;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #2d303f;
+  background: #3f3f46;
 }
 
 /* Spatial Radar Keyframes */

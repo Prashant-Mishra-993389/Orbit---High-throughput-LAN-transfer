@@ -45,27 +45,24 @@ export function InstantShareCard({
   );
 
   return (
-    <div className="w-full space-y-5 animate-fade-in">
+    <div className="w-full space-y-4 animate-fade-in">
       {/* File Showcase Hero Banner */}
-      <div className="p-6 rounded-3xl bg-obsidian-card/95 border border-white/[0.08] shadow-2xl relative overflow-hidden backdrop-blur-2xl">
-        <div className="absolute top-0 right-0 -mr-12 -mt-12 w-48 h-48 bg-cyan-500/10 rounded-full blur-3xl pointer-events-none" />
-
+      <div className="p-5 rounded-xl bg-obsidian-card border border-white/[0.08] shadow-xl relative overflow-hidden">
         <div className="flex items-start justify-between gap-4">
-          <div className="flex items-center space-x-4 min-w-0">
-            <div className="w-14 h-14 rounded-2xl bg-obsidian-base border border-white/[0.08] flex items-center justify-center flex-shrink-0 shadow-inner">
-              <FileIcon fileName={file.name} mimeType={file.type} className="w-8 h-8" />
+          <div className="flex items-center space-x-3.5 min-w-0">
+            <div className="w-12 h-12 rounded-lg bg-obsidian-base border border-white/[0.08] flex items-center justify-center flex-shrink-0">
+              <FileIcon fileName={file.name} mimeType={file.type} className="w-6 h-6" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center space-x-2">
-                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-cyan-500/15 text-cyan-300 border border-cyan-500/25">
-                  <Sparkles className="w-3 h-3" />
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-mono uppercase tracking-wider bg-white/[0.05] text-zinc-300 border border-white/[0.08]">
                   <span>{file.name.endsWith('.tar') ? 'Folder Bundle' : 'Ready to Stream'}</span>
                 </span>
-                <span className="text-xs font-mono text-warm-sand">
+                <span className="text-xs font-mono text-zinc-400">
                   {formatBytes(file.size)}
                 </span>
               </div>
-              <h3 className="text-lg font-bold text-warm-bone truncate max-w-sm mt-0.5" title={file.name}>
+              <h3 className="text-base font-semibold text-zinc-100 truncate max-w-sm mt-0.5" title={file.name}>
                 {file.name}
               </h3>
             </div>
@@ -73,73 +70,70 @@ export function InstantShareCard({
 
           <button
             onClick={onCancel}
-            className="p-2 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] text-warm-sand hover:text-warm-bone transition-all flex-shrink-0"
+            className="p-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-zinc-400 hover:text-white transition-all flex-shrink-0"
             title="Cancel & Choose Another File"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Live waiting pulse */}
-        <div className="mt-4 pt-3.5 border-t border-white/[0.06] flex items-center justify-between text-xs text-warm-sand">
+        {/* Live waiting status */}
+        <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between text-xs text-zinc-400">
           <div className="flex items-center space-x-2">
-            <span className="flex h-2.5 w-2.5 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-cyan-500" />
-            </span>
-            <span className="font-medium text-warm-bone">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="font-medium text-zinc-300">
               Waiting for receiver to connect...
             </span>
           </div>
-          <span className="text-[11px] text-warm-stone hidden sm:inline">
-            Zero duplicate copies stored on disk
+          <span className="text-[11px] text-zinc-500 hidden sm:inline font-mono">
+            Direct live pipe • 0 cloud bytes
           </span>
         </div>
       </div>
 
       {/* Direct Send to Discovered Nearby Laptops (PRIMARY FOR LAPTOPS) */}
       {availableDevices.length > 0 && (
-        <div className="p-5 rounded-3xl bg-obsidian-card/95 border border-cyan-500/20 space-y-3.5 shadow-xl">
+        <div className="p-4 rounded-xl bg-obsidian-card border border-white/[0.08] space-y-3 shadow-lg">
           <div className="flex items-center justify-between px-1">
-            <div className="flex items-center space-x-2 text-xs font-bold text-warm-bone uppercase tracking-wider">
-              <Zap className="w-4 h-4 text-cyan-400" />
-              <span>Beam Directly to Nearby Device (1-Click)</span>
+            <div className="flex items-center space-x-2 text-xs font-semibold text-zinc-200">
+              <Laptop className="w-4 h-4 text-zinc-400" />
+              <span>Send Directly to Discovered Device</span>
             </div>
-            <span className="text-[11px] text-cyan-300 font-mono">
+            <span className="text-[11px] text-zinc-400 font-mono">
               {availableDevices.length} online
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {availableDevices.map((device) => {
               const isPaired = pairedDevice?.deviceId === device.deviceId;
               return (
                 <button
                   key={device.deviceId}
                   onClick={() => onSendToDevice(device)}
-                  className={`p-3.5 rounded-2xl border text-left transition-all duration-200 flex items-center justify-between group active:scale-[0.98] ${
+                  className={`p-3 rounded-lg border text-left transition-all duration-150 flex items-center justify-between group active:scale-[0.98] ${
                     isPaired
-                      ? 'bg-cyan-500/15 border-cyan-500/40 hover:bg-cyan-500/25 shadow-md'
-                      : 'bg-obsidian-hover/70 border-white/[0.06] hover:border-cyan-500/40 hover:bg-obsidian-hover'
+                      ? 'bg-white/[0.08] border-white/30 text-white'
+                      : 'bg-obsidian-hover border-white/[0.06] hover:border-white/20 text-zinc-300 hover:text-white'
                   }`}
                 >
                   <div className="flex items-center space-x-2.5 min-w-0 pr-2">
-                    <div className="w-9 h-9 rounded-xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center text-cyan-400 flex-shrink-0 group-hover:scale-105 transition-transform">
-                      <Laptop className="w-4 h-4" />
+                    <div className="w-7 h-7 rounded-md bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-zinc-400 group-hover:text-white flex-shrink-0">
+                      <Laptop className="w-3.5 h-3.5" />
                     </div>
                     <div className="min-w-0">
-                      <p className="text-xs font-bold text-warm-bone truncate group-hover:text-white">
+                      <p className="text-xs font-medium text-zinc-200 truncate group-hover:text-white">
                         {device.deviceName}
                       </p>
-                      <p className="text-[10px] font-mono text-warm-sand">
+                      <p className="text-[10px] font-mono text-zinc-500">
                         {device.ip}
                       </p>
                     </div>
                   </div>
 
-                  <span className="px-3 py-1.5 rounded-xl bg-cyan-500/20 text-cyan-300 text-xs font-bold flex items-center space-x-1.5 group-hover:bg-cyan-500 group-hover:text-slate-950 transition-all flex-shrink-0 shadow-sm">
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Beam</span>
+                  <span className="px-2.5 py-1 rounded bg-white/[0.08] hover:bg-white text-zinc-200 hover:text-zinc-950 text-xs font-medium flex items-center space-x-1.5 transition-all flex-shrink-0 border border-white/[0.08]">
+                    <Send className="w-3 h-3" />
+                    <span>Send</span>
                   </span>
                 </button>
               );
@@ -152,8 +146,8 @@ export function InstantShareCard({
       <QrCodeCard
         url={directOfferUrl}
         title="Mobile Phone Link"
-        subtitle="Point your phone camera to download directly into phone browser"
-        size={200}
+        subtitle="Point phone camera to stream directly into browser"
+        size={180}
         showCopy={true}
       />
     </div>
