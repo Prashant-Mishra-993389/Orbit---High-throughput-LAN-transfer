@@ -344,18 +344,22 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
 
   // Relay: Recipient pulls live stream from relay memory buffer
   // Zero bytes stored on relay!
-  server.get<{ Params: { sessionId: string } }>('/api/relay/:sessionId/stream', async (request, reply) => {
-    request.raw.setTimeout(0);
-    reply.raw.setTimeout(0);
-    const { sessionId } = request.params;
+  server.get<{ Params: { sessionId: string }; Querystring: { filename?: string } }>(
+    '/api/relay/:sessionId/stream',
+    async (request, reply) => {
+      request.raw.setTimeout(0);
+      reply.raw.setTimeout(0);
+      const { sessionId } = request.params;
+      const { filename } = request.query || {};
 
-    try {
-      await relayBridge.handleReceiverStream(sessionId, reply);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: msg });
+      try {
+        await relayBridge.handleReceiverStream(sessionId, reply, filename);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return reply.status(500).send({ error: msg });
+      }
     }
-  });
+  );
 
   // Relay: Get session status
   server.get<{ Params: { sessionId: string } }>('/api/relay/:sessionId/status', async (request, reply) => {
@@ -600,18 +604,22 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
 
   // Recipient receives live file bytes directly from StreamBridge as sender pushes them
   // Streams simultaneously in real time without waiting for complete upload!
-  server.get<{ Params: { id: string } }>('/api/transfers/:id/live-pipe', async (request, reply) => {
-    request.raw.setTimeout(0);
-    reply.raw.setTimeout(0);
-    const { id } = request.params;
+  server.get<{ Params: { id: string }; Querystring: { filename?: string } }>(
+    '/api/transfers/:id/live-pipe',
+    async (request, reply) => {
+      request.raw.setTimeout(0);
+      reply.raw.setTimeout(0);
+      const { id } = request.params;
+      const { filename } = request.query || {};
 
-    try {
-      await streamBridge.handleReceiverStream(id, reply);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return reply.status(500).send({ error: msg });
+      try {
+        await streamBridge.handleReceiverStream(id, reply, filename);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        return reply.status(500).send({ error: msg });
+      }
     }
-  });
+  );
 
   // Direct Inbound Push (Laptop A pushes directly to Laptop B's server)
   // Laptop B receives stream and writes to Laptop B's disk; Laptop A writes 0 bytes!

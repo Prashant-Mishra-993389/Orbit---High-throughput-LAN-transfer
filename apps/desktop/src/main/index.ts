@@ -97,6 +97,43 @@ async function bootstrapApp() {
     }
   });
 
+  let preselectedSavePath: string | null = null;
+
+  ipcMain.on('system:getDefaultSaveDir', (event: any) => {
+    const defaultDownloads = path.join(os.homedir(), 'Downloads', 'Orbit');
+    if (!fs.existsSync(defaultDownloads)) {
+      fs.mkdirSync(defaultDownloads, { recursive: true });
+    }
+    event.returnValue = defaultDownloads;
+  });
+
+  ipcMain.handle('transfer:setPreselectedSavePath', (_event: any, savePath: string | null) => {
+    preselectedSavePath = savePath;
+    return true;
+  });
+
+  ipcMain.handle('dialog:chooseSavePath', async (_event: any, defaultFilename: string) => {
+    if (!mainWindow || mainWindow.isDestroyed()) return null;
+    const defaultDownloads = path.join(os.homedir(), 'Downloads', 'Orbit');
+    if (!fs.existsSync(defaultDownloads)) {
+      fs.mkdirSync(defaultDownloads, { recursive: true });
+    }
+    const defaultFilePath = path.join(defaultDownloads, defaultFilename || 'download');
+
+    const result = await dialog.showSaveDialog(mainWindow, {
+      title: 'Choose Save Location',
+      defaultPath: defaultFilePath,
+      properties: ['showOverwriteConfirmation'],
+    });
+
+    if (result.canceled || !result.filePath) {
+      return null;
+    }
+
+    preselectedSavePath = result.filePath;
+    return result.filePath;
+  });
+
   ipcMain.handle('shell:openDownloads', async () => {
     const downloadsPath = path.join(os.homedir(), 'Downloads', 'Orbit');
     if (!fs.existsSync(downloadsPath)) {
@@ -131,26 +168,38 @@ async function bootstrapApp() {
     }
     const defaultFilePath = path.join(defaultDownloads, item.getFilename());
 
-    // Prompt user with native OS Save Dialog so they can choose where to save every time!
-    const chosenPath = dialog.showSaveDialogSync(mainWindow!, {
-      title: 'Save Received File',
-      defaultPath: defaultFilePath,
-      properties: ['showOverwriteConfirmation'],
-    });
+    let saveFilePath: string | null = null;
 
-    if (!chosenPath) {
-      item.cancel();
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('download:failed', {
-          filename: item.getFilename(),
-          state: 'cancelled',
-        });
+    if (preselectedSavePath === 'DEFAULT_DOWNLOADS') {
+      // User explicitly picked default Downloads folder
+      saveFilePath = defaultFilePath;
+      preselectedSavePath = null;
+    } else if (preselectedSavePath) {
+      // User pre-selected custom location in UI
+      saveFilePath = preselectedSavePath;
+      preselectedSavePath = null;
+    } else {
+      // Prompt user with native OS Save Dialog if not preselected
+      const chosenPath = dialog.showSaveDialogSync(mainWindow!, {
+        title: 'Save Received File',
+        defaultPath: defaultFilePath,
+        properties: ['showOverwriteConfirmation'],
+      });
+
+      if (!chosenPath) {
+        item.cancel();
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('download:failed', {
+            filename: item.getFilename(),
+            state: 'cancelled',
+          });
+        }
+        return;
       }
-      return;
+      saveFilePath = chosenPath;
     }
 
-    const saveFilePath = chosenPath;
-    const targetExtractDir = path.dirname(chosenPath);
+    const targetExtractDir = path.dirname(saveFilePath);
     item.setSavePath(saveFilePath);
 
     let lastBytes = 0;

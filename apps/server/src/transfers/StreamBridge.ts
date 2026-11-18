@@ -135,7 +135,8 @@ export class StreamBridgeManager extends EventEmitter {
    */
   public async handleReceiverStream(
     transferId: string,
-    reply: FastifyReply
+    reply: FastifyReply,
+    overrideFilename?: string
   ): Promise<void> {
     let bridge = this.bridges.get(transferId);
     if (!bridge) {
@@ -145,12 +146,13 @@ export class StreamBridgeManager extends EventEmitter {
     bridge.receiverConnected = true;
     bridge.receiverReply = reply;
 
-    const safeAscii = bridge.fileName.replace(/["\\]/g, '_');
+    const actualFileName = overrideFilename || bridge.fileName;
+    const safeAscii = actualFileName.replace(/["\\]/g, '_');
     reply.header('Content-Type', bridge.mimeType || 'application/octet-stream');
     reply.header('Content-Length', bridge.totalBytes);
     reply.header(
       'Content-Disposition',
-      `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(bridge.fileName)}`
+      `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(actualFileName)}`
     );
 
     // Track receiver disconnection mid-stream

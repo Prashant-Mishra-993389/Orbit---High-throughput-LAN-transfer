@@ -583,14 +583,15 @@ export default function Home() {
 
       // Connect to the live stream pipe and save directly on recipient machine
       let streamUrl: string;
+      const encodedName = encodeURIComponent(offer.fileName);
       if (isRelay) {
-        streamUrl = `${getServerBaseUrl()}/api/relay/${offer.relaySessionId || offer.transferId}/stream`;
+        streamUrl = `${getServerBaseUrl()}/api/relay/${offer.relaySessionId || offer.transferId}/stream?filename=${encodedName}`;
       } else {
         const targetHost =
           offer.senderIp && offer.senderPort
             ? `http://${offer.senderIp}:${offer.senderPort}`
             : getServerBaseUrl();
-        streamUrl = `${targetHost}/api/transfers/${offer.transferId}/live-pipe`;
+        streamUrl = `${targetHost}/api/transfers/${offer.transferId}/live-pipe?filename=${encodedName}`;
       }
 
       consumeIncomingStream(

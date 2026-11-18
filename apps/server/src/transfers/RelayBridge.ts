@@ -208,7 +208,8 @@ export class RelayBridgeManager extends EventEmitter {
    */
   public async handleReceiverStream(
     sessionId: string,
-    reply: FastifyReply
+    reply: FastifyReply,
+    overrideFilename?: string
   ): Promise<void> {
     const bridge = this.activeBridges.get(sessionId);
     if (!bridge) {
@@ -219,12 +220,13 @@ export class RelayBridgeManager extends EventEmitter {
     bridge.receiverReply = reply;
     bridge.lastActivity = Date.now();
 
-    const safeAscii = bridge.session.fileName.replace(/["\\]/g, '_');
+    const actualFileName = overrideFilename || bridge.session.fileName;
+    const safeAscii = actualFileName.replace(/["\\]/g, '_');
     reply.header('Content-Type', bridge.session.mimeType || 'application/octet-stream');
     reply.header('Content-Length', bridge.session.fileSize);
     reply.header(
       'Content-Disposition',
-      `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(bridge.session.fileName)}`
+      `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(actualFileName)}`
     );
     reply.header('X-ShareLAN-Transport', 'RELAY_STREAM');
 
