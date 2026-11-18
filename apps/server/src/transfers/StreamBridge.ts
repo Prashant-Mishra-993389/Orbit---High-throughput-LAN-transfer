@@ -33,6 +33,11 @@ export class StreamBridgeManager extends EventEmitter {
       highWaterMark: 64 * 1024, // 64 KiB buffer for strict backpressure and bounded memory
     });
 
+    // Guard against unhandled 'error' events
+    passThrough.on('error', (err) => {
+      console.debug(`[StreamBridge] Handled passThrough error for ${params.transferId}: ${err.message}`);
+    });
+
     const bridge: ActiveBridge = {
       transferId: params.transferId,
       passThrough,
@@ -91,7 +96,9 @@ export class StreamBridgeManager extends EventEmitter {
         isSettled = true;
         const error = err || new Error('Receiver disconnected or transfer cancelled');
         try {
-          inputStream.destroy(error);
+          if (!inputStream.destroyed) {
+            inputStream.destroy();
+          }
         } catch {}
         this.bridges.delete(transferId);
         transferManager.markFailed(transferId, error.message);
@@ -147,7 +154,7 @@ export class StreamBridgeManager extends EventEmitter {
       inputStream.on('close', () => {
         if (!inputStream.readableEnded && bridge?.passThrough && !bridge.passThrough.destroyed && !isSettled) {
           isSettled = true;
-          bridge.passThrough.destroy(new Error('Sender disconnected mid-stream'));
+          bridge.passThrough.destroy();
           transferManager.markFailed(transferId, 'Sender disconnected mid-stream');
           this.bridges.delete(transferId);
           reject(new Error('Sender disconnected mid-stream'));
@@ -157,7 +164,7 @@ export class StreamBridgeManager extends EventEmitter {
       inputStream.on('error', (err) => {
         if (isSettled) return;
         isSettled = true;
-        bridge!.passThrough.destroy(err);
+        bridge!.passThrough.destroy();
         transferManager.markFailed(transferId, err.message);
         this.bridges.delete(transferId);
         reject(err);
@@ -195,7 +202,7 @@ export class StreamBridgeManager extends EventEmitter {
       reply.raw.on('close', () => {
         if (!reply.raw.writableEnded && bridge?.passThrough && !bridge.passThrough.destroyed) {
           console.warn(`Receiver closed connection early for transfer ${transferId}`);
-          bridge.passThrough.destroy(new Error('Receiver disconnected'));
+          bridge.passThrough.destroy();
           transferManager.markFailed(transferId, 'Receiver disconnected');
           this.bridges.delete(transferId);
         }
@@ -216,7 +223,7 @@ export class StreamBridgeManager extends EventEmitter {
     const bridge = this.bridges.get(transferId);
     if (bridge) {
       if (!bridge.passThrough.destroyed) {
-        bridge.passThrough.destroy(new Error('Transfer cancelled'));
+        bridge.passThrough.destroy();
       }
       this.bridges.delete(transferId);
     }

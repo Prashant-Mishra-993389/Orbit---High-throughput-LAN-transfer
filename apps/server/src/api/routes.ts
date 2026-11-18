@@ -345,15 +345,19 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
 
       try {
         const result = await relayBridge.handleSenderStream(sessionId, inputStream);
-        return reply.send({
-          success: true,
-          sessionId,
-          bytesRelayed: result.bytesRelayed,
-          finalHash: result.finalHash,
-        });
+        if (!reply.raw.destroyed && !reply.sent) {
+          return reply.send({
+            success: true,
+            sessionId,
+            bytesRelayed: result.bytesRelayed,
+            finalHash: result.finalHash,
+          });
+        }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        return reply.status(500).send({ error: msg });
+        if (!reply.raw.destroyed && !reply.sent) {
+          return reply.status(500).send({ error: msg });
+        }
       }
     }
   );
@@ -372,7 +376,9 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
         await relayBridge.handleReceiverStream(sessionId, reply, filename);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        return reply.status(500).send({ error: msg });
+        if (!reply.raw.destroyed && !reply.sent) {
+          return reply.status(500).send({ error: msg });
+        }
       }
     }
   );
@@ -610,15 +616,19 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
 
       try {
         const result = await streamBridge.handleSenderStream(id, inputStream);
-        return reply.send({
-          success: true,
-          transferId: id,
-          bytesTransferred: result.bytesTransferred,
-          finalHash: result.finalHash,
-        });
+        if (!reply.raw.destroyed && !reply.sent) {
+          return reply.send({
+            success: true,
+            transferId: id,
+            bytesTransferred: result.bytesTransferred,
+            finalHash: result.finalHash,
+          });
+        }
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        return reply.status(500).send({ error: msg });
+        if (!reply.raw.destroyed && !reply.sent) {
+          return reply.status(500).send({ error: msg });
+        }
       }
     }
   );
@@ -637,7 +647,9 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
         await streamBridge.handleReceiverStream(id, reply, filename);
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
-        return reply.status(500).send({ error: msg });
+        if (!reply.raw.destroyed && !reply.sent) {
+          return reply.status(500).send({ error: msg });
+        }
       }
     }
   );

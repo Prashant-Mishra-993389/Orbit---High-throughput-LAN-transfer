@@ -9,6 +9,41 @@ import { startServer, RunningServer } from '@sharelan/server';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Suppress non-fatal stream abort and network reset dialog popups on Windows
+process.on('uncaughtException', (err: any) => {
+  const msg = err?.message || String(err);
+  if (
+    msg.includes('Transfer cancelled') ||
+    msg.includes('Receiver disconnected') ||
+    msg.includes('Sender disconnected') ||
+    msg.includes('ECONNRESET') ||
+    msg.includes('EPIPE') ||
+    msg.includes('ERR_STREAM_DESTROYED') ||
+    msg.includes('premature close')
+  ) {
+    console.debug('[Main Process] Handled network/stream abort:', msg);
+    return;
+  }
+  console.error('[Main Process] Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', (reason: any) => {
+  const msg = reason?.message || String(reason);
+  if (
+    msg.includes('Transfer cancelled') ||
+    msg.includes('Receiver disconnected') ||
+    msg.includes('Sender disconnected') ||
+    msg.includes('ECONNRESET') ||
+    msg.includes('EPIPE') ||
+    msg.includes('ERR_STREAM_DESTROYED') ||
+    msg.includes('premature close')
+  ) {
+    console.debug('[Main Process] Handled unhandledRejection stream abort:', msg);
+    return;
+  }
+  console.error('[Main Process] Unhandled Rejection:', reason);
+});
+
 let mainWindow: BrowserWindow | null = null;
 let runningServer: RunningServer | null = null;
 let tray: Tray | null = null;
@@ -151,23 +186,27 @@ async function bootstrapApp() {
         }
 
         if (mainWindow && !mainWindow.isDestroyed()) {
-          if (total > 0) {
-            mainWindow.setProgressBar(received / total);
-          }
-          mainWindow.webContents.send('download:progress', {
-            filename: item.getFilename(),
-            bytesTransferred: received,
-            fileSize: total,
-            percentage: total > 0 ? (received / total) * 100 : 0,
-            currentSpeed,
-          });
+          try {
+            if (total > 0) {
+              mainWindow.setProgressBar(received / total);
+            }
+            mainWindow.webContents.send('download:progress', {
+              filename: item.getFilename(),
+              bytesTransferred: received,
+              fileSize: total,
+              percentage: total > 0 ? (received / total) * 100 : 0,
+              currentSpeed,
+            });
+          } catch {}
         }
       }
     });
 
     item.once('done', (_event: any, state: string) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.setProgressBar(-1);
+        try {
+          mainWindow.setProgressBar(-1);
+        } catch {}
       }
       if (state === 'completed') {
         const filename = item.getFilename();
@@ -181,11 +220,13 @@ async function bootstrapApp() {
                 console.log(`Auto-unpacked ${filename} directly into ${targetExtractDir}`);
               }
               if (mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('download:completed', {
-                  filename,
-                  savePath: saveFilePath,
-                  unpacked: !err,
-                });
+                try {
+                  mainWindow.webContents.send('download:completed', {
+                    filename,
+                    savePath: saveFilePath,
+                    unpacked: !err,
+                  });
+                } catch {}
               }
             });
             return;
@@ -195,17 +236,21 @@ async function bootstrapApp() {
         }
 
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('download:completed', {
-            filename,
-            savePath: saveFilePath,
-          });
+          try {
+            mainWindow.webContents.send('download:completed', {
+              filename,
+              savePath: saveFilePath,
+            });
+          } catch {}
         }
       } else {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('download:failed', {
-            filename: item.getFilename(),
-            state,
-          });
+          try {
+            mainWindow.webContents.send('download:failed', {
+              filename: typeof item.getFilename === 'function' ? item.getFilename() : 'download',
+              state,
+            });
+          } catch {}
         }
       }
     });

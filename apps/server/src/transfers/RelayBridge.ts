@@ -67,6 +67,10 @@ export class RelayBridgeManager extends EventEmitter {
       highWaterMark: 64 * 1024,
     });
 
+    passThrough.on('error', (err) => {
+      console.debug(`[RelayBridge] Handled passThrough error for ${params.transferId}: ${err.message}`);
+    });
+
     const session: RelaySessionInfo = {
       sessionId,
       transferId: params.transferId,
@@ -139,7 +143,9 @@ export class RelayBridgeManager extends EventEmitter {
         isSettled = true;
         const error = err || new Error('Receiver disconnected or relay cancelled');
         try {
-          inputStream.destroy(error);
+          if (!inputStream.destroyed) {
+            inputStream.destroy();
+          }
         } catch {}
         bridge.session.status = 'FAILED';
         transferManager.markFailed(bridge.session.transferId, error.message);
@@ -219,7 +225,7 @@ export class RelayBridgeManager extends EventEmitter {
         if (!inputStream.readableEnded && bridge.passThrough && !bridge.passThrough.destroyed && !isSettled) {
           isSettled = true;
           bridge.session.status = 'FAILED';
-          bridge.passThrough.destroy(new Error('Sender disconnected mid-stream'));
+          bridge.passThrough.destroy();
           transferManager.markFailed(bridge.session.transferId, 'Sender disconnected mid-stream');
           this.activeBridges.delete(sessionId);
           reject(new Error('Sender disconnected mid-stream'));
@@ -230,7 +236,7 @@ export class RelayBridgeManager extends EventEmitter {
         if (isSettled) return;
         isSettled = true;
         bridge.session.status = 'FAILED';
-        bridge.passThrough.destroy(err);
+        bridge.passThrough.destroy();
         transferManager.markFailed(bridge.session.transferId, err.message);
         this.activeBridges.delete(sessionId);
         reject(err);
@@ -269,7 +275,7 @@ export class RelayBridgeManager extends EventEmitter {
     if (reply.raw && typeof reply.raw.on === 'function') {
       reply.raw.on('close', () => {
         if (!reply.raw.writableEnded && bridge.passThrough && !bridge.passThrough.destroyed) {
-          bridge.passThrough.destroy(new Error('Receiver disconnected'));
+          bridge.passThrough.destroy();
           this.activeBridges.delete(sessionId);
         }
       });
@@ -290,7 +296,7 @@ export class RelayBridgeManager extends EventEmitter {
     if (bridge) {
       bridge.session.status = 'CANCELLED';
       if (!bridge.passThrough.destroyed) {
-        bridge.passThrough.destroy(new Error('Relay cancelled'));
+        bridge.passThrough.destroy();
       }
       this.activeBridges.delete(sessionId);
     }
