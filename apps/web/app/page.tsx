@@ -80,10 +80,10 @@ export default function Home() {
   const [completedRecords, setCompletedRecords] = useState<CompletedTransferRecord[]>([]);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
 
-  // Drop-First instant staged share: when sender drops a file, an offer is pre-created immediately
+  // Drop-First instant staged share: when sender drops a file without a target, it stages locally with ZERO network broadcast
   const [stagedShare, setStagedShare] = useState<{
     file: File;
-    offer: TransferOffer;
+    offer: TransferOffer | null;
   } | null>(null);
 
   // Stored reference to the pending file on sender for live streaming
@@ -300,7 +300,7 @@ export default function Home() {
         );
         pendingFileRef.current = null;
       }
-      if (stagedShare && stagedShare.offer.transferId === rejectedOfferEvent.transferId) {
+      if (stagedShare?.offer && stagedShare.offer.transferId === rejectedOfferEvent.transferId) {
         setStagedShare(null);
         pendingFileRef.current = null;
       }
@@ -325,7 +325,7 @@ export default function Home() {
       if (incomingOffer && incomingOffer.transferId === cancelledTransferEvent.transferId) {
         setIncomingOffer(null);
       }
-      if (stagedShare && stagedShare.offer.transferId === cancelledTransferEvent.transferId) {
+      if (stagedShare?.offer && stagedShare.offer.transferId === cancelledTransferEvent.transferId) {
         setStagedShare(null);
         pendingFileRef.current = null;
       }
@@ -341,32 +341,29 @@ export default function Home() {
   const handleDropFirstFile = useCallback(
     async (file: File, explicitTarget?: DeviceInfo | null) => {
       // Cleanly cancel any previous staged share offer before creating a new one
-      if (stagedShare) {
+      if (stagedShare?.offer) {
         cancelTransfer(stagedShare.offer.transferId).catch(() => {});
         setStagedShare(null);
+      }
+
+      const targetPeer = explicitTarget || pairedDevice || null;
+
+      // CRITICAL: If no recipient target has been chosen or paired, DO NOT create or broadcast an offer!
+      // Simply stage the file locally on the sender's screen.
+      // ZERO network requests, ZERO WebSocket messages, ZERO popups on any other machine!
+      if (!targetPeer) {
+        setStagedShare({ file, offer: null });
+        return;
       }
 
       setIsSending(true);
 
       try {
-        const targetPeer =
-          explicitTarget ||
-          pairedDevice ||
-          (devices.length === 1 && devices[0].deviceId !== session.clientId
-            ? devices[0]
-            : null);
-
         let transportMode: TransportMode = 'DIRECT_LAN';
+        const probe = await probeAndSelectTransport(targetPeer.ip, targetPeer.port);
+        transportMode = probe.selectedTransport;
 
-        if (targetPeer) {
-          const probe = await probeAndSelectTransport(targetPeer.ip, targetPeer.port);
-          transportMode = probe.selectedTransport;
-        }
-
-        const targetHost =
-          targetPeer && targetPeer.ip && targetPeer.port
-            ? `http://${targetPeer.ip}:${targetPeer.port}`
-            : undefined;
+        const targetHost = `http://${targetPeer.ip}:${targetPeer.port}`;
 
         const offer = await createTransferOffer({
           fileName: file.name,
@@ -374,8 +371,8 @@ export default function Home() {
           mimeType: file.type || 'application/octet-stream',
           senderClientId: session.clientId,
           senderDeviceName: session.clientName,
-          targetDeviceId: targetPeer?.deviceId,
-          targetClientId: targetPeer?.deviceId,
+          targetDeviceId: targetPeer.deviceId,
+          targetClientId: targetPeer.deviceId,
           targetHost,
           transportMode,
         });
@@ -387,33 +384,29 @@ export default function Home() {
           relaySessionId: offer.relaySessionId || offer.transferId,
         };
 
-        if (targetPeer) {
-          // Direct 1-Click Beam: Immediately transition to active transfer state
-          setStagedShare(null);
-          setActiveTransfer({
-            transferId: offer.transferId,
-            role: 'sender',
-            fileName: file.name,
-            fileSize: file.size,
-            peerName: targetPeer.deviceName,
-            status: 'OFFERED',
-            transportMode,
-            bytesTransferred: 0,
-            percentage: 0,
-            currentSpeed: 0,
-            averageSpeed: 0,
-            etaSeconds: 0,
-          });
-        } else {
-          setStagedShare({ file, offer });
-        }
+        // Direct 1-Click Beam: Immediately transition to active transfer state
+        setStagedShare(null);
+        setActiveTransfer({
+          transferId: offer.transferId,
+          role: 'sender',
+          fileName: file.name,
+          fileSize: file.size,
+          peerName: targetPeer.deviceName,
+          status: 'OFFERED',
+          transportMode,
+          bytesTransferred: 0,
+          percentage: 0,
+          currentSpeed: 0,
+          averageSpeed: 0,
+          etaSeconds: 0,
+        });
       } catch (err: unknown) {
         console.error('Instant share offer error:', err);
       } finally {
         setIsSending(false);
       }
     },
-    [pairedDevice, devices, session, stagedShare]
+    [pairedDevice, session, stagedShare]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -1012,13 +1005,15 @@ export default function Home() {
               setPairedDevice(device);
               if (stagedShare) {
                 const fileToSend = stagedShare.file;
-                cancelTransfer(stagedShare.offer.transferId).catch(() => {});
+                if (stagedShare.offer) {
+                  cancelTransfer(stagedShare.offer.transferId).catch(() => {});
+                }
                 setStagedShare(null);
                 handleDropFirstFile(fileToSend, device);
               }
             }}
             onCancel={() => {
-              if (stagedShare) {
+              if (stagedShare?.offer) {
                 cancelTransfer(stagedShare.offer.transferId).catch(() => {});
               }
               setStagedShare(null);

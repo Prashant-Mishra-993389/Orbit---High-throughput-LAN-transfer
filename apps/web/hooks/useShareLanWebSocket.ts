@@ -85,19 +85,26 @@ export function useShareLanWebSocket() {
           if (o.senderClientId === currentSession.clientId) return false;
           if (now - o.createdAt > 3 * 60 * 1000) return false;
 
-          const isDirectlyTargeted =
-            o.targetClientId === currentSession.clientId ||
-            o.targetDeviceId === currentSession.clientId;
+          // Must be explicitly targeted to us or to our host server
+          const isTargetedToUs =
+            (o.targetClientId && o.targetClientId === currentSession.clientId) ||
+            (o.targetDeviceId && o.targetDeviceId === currentSession.clientId) ||
+            Boolean(
+              diagnosticsRef.current?.localIp &&
+                ((o.targetDeviceId && o.targetDeviceId.includes(diagnosticsRef.current.localIp.replace(/\./g, '-'))) ||
+                  (o.targetDeviceId && o.targetDeviceId === diagnosticsRef.current.localIp))
+            );
 
-          if (activePartner) {
-            const isFromPartner =
-              o.senderClientId === activePartner.deviceId ||
-              o.senderDeviceId === activePartner.deviceId ||
-              o.senderIp === activePartner.ip;
-            return isDirectlyTargeted || isFromPartner;
-          }
+          const isFromPartner = Boolean(
+            activePartner &&
+              (o.senderClientId === activePartner.deviceId ||
+                o.senderDeviceId === activePartner.deviceId ||
+                o.senderIp === activePartner.ip)
+          );
 
-          return isDirectlyTargeted || (!o.targetClientId && !o.targetDeviceId);
+          // STRICT: Only accept if targeted directly to us or from our paired partner.
+          // Untargeted/unconnected broadcasts NEVER trigger popups!
+          return isTargetedToUs || isFromPartner;
         })
         .sort((a, b) => b.createdAt - a.createdAt);
 
@@ -154,30 +161,32 @@ export function useShareLanWebSocket() {
 
             case 'transfer:offer': {
               const offer = msg.payload as TransferOffer;
-              // SENDER NEVER ACCEPTS THEIR OWN TRANSFER!
+              // 1. SENDER NEVER ACCEPTS THEIR OWN TRANSFER!
               if (offer.senderClientId === currentSession.clientId) {
                 break;
               }
 
               const activePartner = pairedDeviceRef.current;
-              const isDirectlyTargeted =
-                offer.targetClientId === currentSession.clientId ||
-                offer.targetDeviceId === currentSession.clientId;
+              const isTargetedToUs =
+                (offer.targetClientId && offer.targetClientId === currentSession.clientId) ||
+                (offer.targetDeviceId && offer.targetDeviceId === currentSession.clientId) ||
+                Boolean(
+                  diagnosticsRef.current?.localIp &&
+                    ((offer.targetDeviceId && offer.targetDeviceId.includes(diagnosticsRef.current.localIp.replace(/\./g, '-'))) ||
+                      (offer.targetDeviceId && offer.targetDeviceId === diagnosticsRef.current.localIp))
+                );
 
-              if (activePartner) {
-                // If paired with a specific device, only accept from partner or targeted specifically to us
-                const isFromPartner =
-                  offer.senderClientId === activePartner.deviceId ||
-                  offer.senderDeviceId === activePartner.deviceId ||
-                  offer.senderIp === activePartner.ip;
-                if (isDirectlyTargeted || isFromPartner) {
-                  setIncomingOffer(offer);
-                }
-              } else {
-                // If not paired, accept targeted offers or public broadcast offers
-                if (isDirectlyTargeted || (!offer.targetClientId && !offer.targetDeviceId)) {
-                  setIncomingOffer(offer);
-                }
+              const isFromPartner = Boolean(
+                activePartner &&
+                  (offer.senderClientId === activePartner.deviceId ||
+                    offer.senderDeviceId === activePartner.deviceId ||
+                    offer.senderIp === activePartner.ip)
+              );
+
+              // STRICT: Only show popup if explicitly targeted to us or from our paired partner.
+              // Untargeted/unconnected broadcasts NEVER trigger popups!
+              if (isTargetedToUs || isFromPartner) {
+                setIncomingOffer(offer);
               }
               break;
             }

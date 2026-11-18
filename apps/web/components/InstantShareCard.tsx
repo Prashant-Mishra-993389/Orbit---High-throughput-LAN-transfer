@@ -19,7 +19,7 @@ import {
 
 interface InstantShareCardProps {
   file: File;
-  offer: TransferOffer;
+  offer?: TransferOffer | null;
   sharingUrl: string;
   nearbyDevices: DeviceInfo[];
   pairedDevice: DeviceInfo | null;
@@ -36,12 +36,14 @@ export function InstantShareCard({
   onSendToDevice,
   onCancel,
 }: InstantShareCardProps) {
-  // Construct direct link including the specific offerId
-  const directOfferUrl = `${sharingUrl}${sharingUrl.includes('?') ? '&' : '?'}offerId=${offer.transferId}`;
+  // Construct direct link including the specific offerId if available
+  const directOfferUrl = offer
+    ? `${sharingUrl}${sharingUrl.includes('?') ? '&' : '?'}offerId=${offer.transferId}`
+    : sharingUrl;
 
   // Filter out the sender itself from nearby devices
   const availableDevices = nearbyDevices.filter(
-    (d) => d.deviceId !== offer.senderClientId && d.deviceId !== offer.senderDeviceId
+    (d) => !offer || (d.deviceId !== offer.senderClientId && d.deviceId !== offer.senderDeviceId)
   );
 
   return (
