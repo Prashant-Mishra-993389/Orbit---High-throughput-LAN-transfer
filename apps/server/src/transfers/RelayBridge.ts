@@ -263,13 +263,14 @@ export class RelayBridgeManager extends EventEmitter {
     bridge.lastActivity = Date.now();
 
     const actualFileName = overrideFilename || bridge.session.fileName;
-    const safeAscii = actualFileName.replace(/["\\]/g, '_');
-    reply.header('Content-Type', bridge.session.mimeType || 'application/octet-stream');
+    const safeAscii = actualFileName.replace(/[^\x20-\x7E]|["\\]/g, '_');
+    reply.header('Content-Type', 'application/octet-stream');
     reply.header('Content-Length', bridge.session.fileSize);
     reply.header(
       'Content-Disposition',
       `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(actualFileName)}`
     );
+    reply.header('X-Content-Type-Options', 'nosniff');
     reply.header('X-ShareLAN-Transport', 'RELAY_STREAM');
 
     if (reply.raw && typeof reply.raw.on === 'function') {

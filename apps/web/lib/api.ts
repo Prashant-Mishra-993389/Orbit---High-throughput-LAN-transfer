@@ -392,17 +392,24 @@ export function streamFileToRelay(
  * Trigger native browser streaming download directly to recipient disk.
  * The browser's native download manager streams chunks straight from socket to disk,
  * requiring ZERO JavaScript memory (unlimited file size: 1GB, 5GB, 50GB+).
+ * 
+ * Must be executed synchronously within the user's click gesture so Chrome
+ * retains transient activation and automatically saves straight to Downloads
+ * without triggering an unprompted "Save As" file picker.
  */
 export function triggerBrowserStreamDownload(streamUrl: string, fileName: string): void {
   const a = document.createElement('a');
   a.href = streamUrl;
   a.setAttribute('download', fileName);
+  a.rel = 'noopener noreferrer';
   a.style.display = 'none';
   document.body.appendChild(a);
   a.click();
   setTimeout(() => {
     try {
-      document.body.removeChild(a);
+      if (document.body.contains(a)) {
+        document.body.removeChild(a);
+      }
     } catch {}
   }, 2000);
 }

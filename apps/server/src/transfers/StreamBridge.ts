@@ -189,13 +189,14 @@ export class StreamBridgeManager extends EventEmitter {
     bridge.receiverReply = reply;
 
     const actualFileName = overrideFilename || bridge.fileName;
-    const safeAscii = actualFileName.replace(/["\\]/g, '_');
-    reply.header('Content-Type', bridge.mimeType || 'application/octet-stream');
+    const safeAscii = actualFileName.replace(/[^\x20-\x7E]|["\\]/g, '_');
+    reply.header('Content-Type', 'application/octet-stream');
     reply.header('Content-Length', bridge.totalBytes);
     reply.header(
       'Content-Disposition',
       `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(actualFileName)}`
     );
+    reply.header('X-Content-Type-Options', 'nosniff');
 
     // Track receiver disconnection mid-stream
     if (reply.raw && typeof reply.raw.on === 'function') {

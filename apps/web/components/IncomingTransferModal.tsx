@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { TransferOffer } from '@sharelan/protocol';
 import { formatBytes } from '@sharelan/shared';
-import { DownloadCloud, Check, X, Laptop, FolderDown, FolderOpen, Download, HardDrive } from 'lucide-react';
+import { DownloadCloud, X, Laptop, FolderDown, Download } from 'lucide-react';
 
 interface IncomingTransferModalProps {
   offer: TransferOffer | null;
-  onAccept: (offer: TransferOffer, fileHandle?: any) => void;
+  onAccept: (offer: TransferOffer) => void;
   onReject: (offer: TransferOffer) => void;
 }
 
@@ -14,37 +14,7 @@ export const IncomingTransferModal: React.FC<IncomingTransferModalProps> = ({
   onAccept,
   onReject,
 }) => {
-  const [hasSavePicker, setHasSavePicker] = useState(false);
-  const [isPickingLocation, setIsPickingLocation] = useState(false);
-
-  useEffect(() => {
-    if (
-      typeof window !== 'undefined' &&
-      'showSaveFilePicker' in window &&
-      window.isSecureContext
-    ) {
-      setHasSavePicker(true);
-    }
-  }, []);
-
   if (!offer || offer.status !== 'OFFERED') return null;
-
-  const handlePickLocationAndAccept = async () => {
-    try {
-      setIsPickingLocation(true);
-      const handle = await (window as any).showSaveFilePicker({
-        suggestedName: offer.fileName,
-      });
-      setIsPickingLocation(false);
-      onAccept(offer, handle);
-    } catch (err: any) {
-      setIsPickingLocation(false);
-      // User cancelled picker dialog
-      if (err.name !== 'AbortError') {
-        console.warn('File picker error:', err);
-      }
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
@@ -88,9 +58,7 @@ export const IncomingTransferModal: React.FC<IncomingTransferModalProps> = ({
             <span>Save Destination</span>
           </div>
           <p className="text-[11px] text-slate-400 leading-relaxed">
-            {hasSavePicker
-              ? 'Streams directly to disk with zero RAM limits. You can choose an exact folder on your computer, or download directly to your default Downloads folder.'
-              : 'Streams directly to your browser\'s Downloads folder (or native Save As dialog). Chunked streaming enabled with zero memory limits.'}
+            Streams directly to your default Downloads folder. Chunked streaming enabled with zero memory limits.
           </p>
         </div>
 
@@ -105,25 +73,13 @@ export const IncomingTransferModal: React.FC<IncomingTransferModalProps> = ({
             <span>Decline</span>
           </button>
 
-          {hasSavePicker && (
-            <button
-              type="button"
-              disabled={isPickingLocation}
-              onClick={handlePickLocationAndAccept}
-              className="w-full sm:flex-1 py-3 px-4 rounded-2xl bg-surface-100 hover:bg-surface-200 text-cyan-300 hover:text-cyan-200 font-semibold text-xs transition-all border border-cyan-500/30 flex items-center justify-center space-x-1.5"
-            >
-              <FolderOpen className="w-4 h-4 text-cyan-400" />
-              <span>Choose Folder & Save</span>
-            </button>
-          )}
-
           <button
             type="button"
             onClick={() => onAccept(offer)}
             className="w-full sm:flex-1 py-3.5 px-4 rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 text-white font-semibold text-xs shadow-lg shadow-cyan-500/25 transition-all active:scale-95 flex items-center justify-center space-x-1.5"
           >
             <Download className="w-4 h-4" />
-            <span>{hasSavePicker ? 'Save to Downloads' : 'Accept & Download'}</span>
+            <span>Accept & Save to Downloads</span>
           </button>
         </div>
       </div>

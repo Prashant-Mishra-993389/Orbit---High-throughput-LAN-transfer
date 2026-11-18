@@ -23,7 +23,7 @@ import {
   acceptTransferOffer,
   rejectTransferOffer,
   cancelTransfer,
-  consumeIncomingStream,
+  triggerBrowserStreamDownload,
   getServerBaseUrl,
   joinPairingSession,
   autoConnectPairing,
@@ -640,9 +640,10 @@ export default function Home() {
   /**
    * RECIPIENT WORKFLOW:
    * Recipient clicks Accept & Save -> stream starts live directly into recipient device.
-   * ZERO bytes stored on server or sender!
+   * Downloads directly to the browser's default Downloads folder without prompt.
+   * ZERO duplicate bytes stored on server or sender!
    */
-  const handleAcceptOffer = async (offer: TransferOffer, fileHandle?: any) => {
+  const handleAcceptOffer = async (offer: TransferOffer) => {
     try {
       const senderHost =
         offer.senderIp && offer.senderPort
@@ -651,16 +652,24 @@ export default function Home() {
 
       receiverSenderHostRef.current = senderHost;
 
-      await acceptTransferOffer(
-        offer.transferId,
-        {
-          receiverClientId: session.clientId,
-          receiverDeviceName: session.clientName,
-        },
-        senderHost
-      );
-
       const isRelay = offer.transportMode === 'RELAY_STREAM';
+      const encodedName = encodeURIComponent(offer.fileName);
+      let streamUrl: string;
+      if (isRelay) {
+        streamUrl = `${getServerBaseUrl()}/api/relay/${offer.relaySessionId || offer.transferId}/stream?filename=${encodedName}`;
+      } else {
+        const targetHost =
+          offer.senderIp && offer.senderPort
+            ? `http://${offer.senderIp}:${offer.senderPort}`
+            : getServerBaseUrl();
+        streamUrl = `${targetHost}/api/transfers/${offer.transferId}/live-pipe?filename=${encodedName}`;
+      }
+
+      // CRITICAL FOR CHROME: Trigger the browser stream download SYNCHRONOUSLY inside the user click handler!
+      // If we wait for acceptTransferOffer() async network round-trip, Chrome's transient user activation token expires,
+      // which causes Chrome to treat the download as an unprompted/untrusted download and triggers the "Save As" file location dialog!
+      // Triggering synchronously preserves the user gesture token so Chrome automatically saves straight into default Downloads!
+      triggerBrowserStreamDownload(streamUrl, offer.fileName);
 
       setActiveTransfer({
         transferId: offer.transferId,
@@ -679,60 +688,21 @@ export default function Home() {
 
       setIncomingOffer(null);
 
-      // Connect to the live stream pipe and save directly on recipient machine
-      let streamUrl: string;
-      const encodedName = encodeURIComponent(offer.fileName);
-      if (isRelay) {
-        streamUrl = `${getServerBaseUrl()}/api/relay/${offer.relaySessionId || offer.transferId}/stream?filename=${encodedName}`;
-      } else {
-        const targetHost =
-          offer.senderIp && offer.senderPort
-            ? `http://${offer.senderIp}:${offer.senderPort}`
-            : getServerBaseUrl();
-        streamUrl = `${targetHost}/api/transfers/${offer.transferId}/live-pipe?filename=${encodedName}`;
-      }
-
-      consumeIncomingStream(
-        streamUrl,
-        offer.fileName,
-        (loaded) => {
-          setActiveTransfer((prev) =>
-            prev && prev.transferId === offer.transferId
-              ? {
-                  ...prev,
-                  bytesTransferred: loaded,
-                  percentage: offer.fileSize > 0 ? (loaded / offer.fileSize) * 100 : 0,
-                }
-              : prev
-          );
+      await acceptTransferOffer(
+        offer.transferId,
+        {
+          receiverClientId: session.clientId,
+          receiverDeviceName: session.clientName,
         },
-        fileHandle
-      )
-        .then((result) => {
-          if (fileHandle) {
-            setActiveTransfer((prev) =>
-              prev && prev.transferId === offer.transferId
-                ? {
-                    ...prev,
-                    status: 'COMPLETED',
-                    percentage: 100,
-                    bytesTransferred: offer.fileSize,
-                    finalHash: result.calculatedHash,
-                  }
-                : prev
-            );
-          }
-        })
-        .catch((err) => {
-          console.error('Receiver stream error:', err);
-          setActiveTransfer((prev) =>
-            prev && prev.transferId === offer.transferId
-              ? { ...prev, status: 'FAILED', error: err.message || 'Stream connection failed' }
-              : prev
-          );
-        });
-    } catch (err) {
+        senderHost
+      );
+    } catch (err: any) {
       console.error('Failed to accept transfer offer:', err);
+      setActiveTransfer((prev) =>
+        prev && prev.transferId === offer.transferId
+          ? { ...prev, status: 'FAILED', error: err.message || 'Stream connection failed' }
+          : prev
+      );
     }
   };
 

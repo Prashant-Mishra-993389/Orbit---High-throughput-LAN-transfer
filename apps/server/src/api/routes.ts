@@ -776,9 +776,14 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
 
     try {
       const stat = await fs.promises.stat(session.finalFilePath);
-      reply.header('Content-Type', session.mimeType || 'application/octet-stream');
+      const safeAscii = session.fileName.replace(/[^\x20-\x7E]|["\\]/g, '_');
+      reply.header('Content-Type', 'application/octet-stream');
       reply.header('Content-Length', stat.size);
-      reply.header('Content-Disposition', `attachment; filename="${encodeURIComponent(session.fileName)}"`);
+      reply.header(
+        'Content-Disposition',
+        `attachment; filename="${safeAscii}"; filename*=UTF-8''${encodeURIComponent(session.fileName)}`
+      );
+      reply.header('X-Content-Type-Options', 'nosniff');
 
       const fileStream = fs.createReadStream(session.finalFilePath, { highWaterMark: 64 * 1024 });
       return reply.send(fileStream);
