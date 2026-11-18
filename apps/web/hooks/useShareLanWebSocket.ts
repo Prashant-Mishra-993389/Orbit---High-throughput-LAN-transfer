@@ -49,12 +49,16 @@ export function useShareLanWebSocket() {
 
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pairedDeviceRef = useRef<DeviceInfo | null>(null);
+  const diagnosticsRef = useRef<NetworkDiagnostics | null>(null);
+
+  pairedDeviceRef.current = pairedDevice;
+  diagnosticsRef.current = diagnostics;
 
   // Keep session up to date
   useEffect(() => {
     setSession(getClientSession());
   }, []);
-
 
   const refreshState = useCallback(async () => {
     try {
@@ -67,18 +71,34 @@ export function useShareLanWebSocket() {
       ]);
       setTransfers(tList);
       setDevices(dList);
-      if (diag) setDiagnostics(diag);
+      if (diag) {
+        setDiagnostics(diag);
+        diagnosticsRef.current = diag;
+      }
 
       // Only show incoming offers originating from OTHER devices that are fresh (not expired)
       const now = Date.now();
+      const activePartner = pairedDeviceRef.current;
       const validOffers = oList
-        .filter(
-          (o) =>
-            o.status === 'OFFERED' &&
-            o.senderClientId !== currentSession.clientId &&
-            (!o.targetClientId || o.targetClientId === currentSession.clientId) &&
-            now - o.createdAt <= 3 * 60 * 1000
-        )
+        .filter((o) => {
+          if (o.status !== 'OFFERED') return false;
+          if (o.senderClientId === currentSession.clientId) return false;
+          if (now - o.createdAt > 3 * 60 * 1000) return false;
+
+          const isDirectlyTargeted =
+            o.targetClientId === currentSession.clientId ||
+            o.targetDeviceId === currentSession.clientId;
+
+          if (activePartner) {
+            const isFromPartner =
+              o.senderClientId === activePartner.deviceId ||
+              o.senderDeviceId === activePartner.deviceId ||
+              o.senderIp === activePartner.ip;
+            return isDirectlyTargeted || isFromPartner;
+          }
+
+          return isDirectlyTargeted || (!o.targetClientId && !o.targetDeviceId);
+        })
         .sort((a, b) => b.createdAt - a.createdAt);
 
       const latestOffer = validOffers[0];
@@ -132,15 +152,35 @@ export function useShareLanWebSocket() {
               setDevices((prev) => prev.filter((d) => d.deviceId !== msg.payload.deviceId));
               break;
 
-            case 'transfer:offer':
+            case 'transfer:offer': {
+              const offer = msg.payload as TransferOffer;
               // SENDER NEVER ACCEPTS THEIR OWN TRANSFER!
-              if (
-                msg.payload.senderClientId !== currentSession.clientId &&
-                (!msg.payload.targetClientId || msg.payload.targetClientId === currentSession.clientId)
-              ) {
-                setIncomingOffer(msg.payload);
+              if (offer.senderClientId === currentSession.clientId) {
+                break;
+              }
+
+              const activePartner = pairedDeviceRef.current;
+              const isDirectlyTargeted =
+                offer.targetClientId === currentSession.clientId ||
+                offer.targetDeviceId === currentSession.clientId;
+
+              if (activePartner) {
+                // If paired with a specific device, only accept from partner or targeted specifically to us
+                const isFromPartner =
+                  offer.senderClientId === activePartner.deviceId ||
+                  offer.senderDeviceId === activePartner.deviceId ||
+                  offer.senderIp === activePartner.ip;
+                if (isDirectlyTargeted || isFromPartner) {
+                  setIncomingOffer(offer);
+                }
+              } else {
+                // If not paired, accept targeted offers or public broadcast offers
+                if (isDirectlyTargeted || (!offer.targetClientId && !offer.targetDeviceId)) {
+                  setIncomingOffer(offer);
+                }
               }
               break;
+            }
 
             case 'transfer:accepted':
               setAcceptedOfferEvent(msg.payload);
@@ -285,11 +325,17 @@ export function useShareLanWebSocket() {
 
   useEffect(() => {
     connect();
+    // Background polling interval to guarantee incoming offers are never missed on completion screen
+    const pollInterval = setInterval(() => {
+      refreshState();
+    }, 2500);
+
     return () => {
+      clearInterval(pollInterval);
       if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
       if (socketRef.current) socketRef.current.close();
     };
-  }, [connect]);
+  }, [connect, refreshState]);
 
   return {
     session,

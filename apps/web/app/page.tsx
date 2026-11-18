@@ -339,7 +339,7 @@ export default function Home() {
    * If no peer is connected yet, shows InstantShareCard for discovery.
    */
   const handleDropFirstFile = useCallback(
-    async (file: File) => {
+    async (file: File, explicitTarget?: DeviceInfo | null) => {
       // Cleanly cancel any previous staged share offer before creating a new one
       if (stagedShare) {
         cancelTransfer(stagedShare.offer.transferId).catch(() => {});
@@ -350,6 +350,7 @@ export default function Home() {
 
       try {
         const targetPeer =
+          explicitTarget ||
           pairedDevice ||
           (devices.length === 1 && devices[0].deviceId !== session.clientId
             ? devices[0]
@@ -1013,7 +1014,7 @@ export default function Home() {
                 const fileToSend = stagedShare.file;
                 cancelTransfer(stagedShare.offer.transferId).catch(() => {});
                 setStagedShare(null);
-                handleDropFirstFile(fileToSend);
+                handleDropFirstFile(fileToSend, device);
               }
             }}
             onCancel={() => {
@@ -1040,7 +1041,7 @@ export default function Home() {
             onFileSelected={handleDropFirstFile}
             onDropOnDevice={(device, file) => {
               setPairedDevice(device);
-              handleDropFirstFile(file);
+              handleDropFirstFile(file, device);
             }}
             onOpenQr={() => setShowNetworkQr(true)}
             showQr={showNetworkQr}

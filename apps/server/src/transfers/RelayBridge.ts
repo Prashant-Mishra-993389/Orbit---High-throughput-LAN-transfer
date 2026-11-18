@@ -218,13 +218,6 @@ export class RelayBridgeManager extends EventEmitter {
             }
           });
         }
-
-        // Cleanly close PassThrough if all bytes have arrived
-        if (bridge.session.fileSize > 0 && bridge.session.bytesRelayed >= bridge.session.fileSize) {
-          try {
-            bridge.passThrough.end();
-          } catch {}
-        }
       });
 
       inputStream.on('end', () => {

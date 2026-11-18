@@ -30,7 +30,7 @@ export class StreamBridgeManager extends EventEmitter {
     mimeType?: string;
   }): ActiveBridge {
     const passThrough = new PassThrough({
-      highWaterMark: 64 * 1024, // 64 KiB buffer for strict backpressure and bounded memory
+      highWaterMark: 1024 * 1024, // 1 MiB buffer for high-throughput LAN streaming with backpressure
     });
 
     // Guard against unhandled 'error' events
@@ -204,22 +204,20 @@ export class StreamBridgeManager extends EventEmitter {
             }
           });
         }
-
-        // If all bytes have been pushed, cleanly end the PassThrough stream
-        if (bridge!.totalBytes > 0 && bridge!.bytesTransferred >= bridge!.totalBytes) {
-          try {
-            bridge!.passThrough.end();
-          } catch {}
-        }
       });
 
       inputStream.on('end', () => {
         if (isSettled) return;
         isSettled = true;
-        bridge!.passThrough.end();
+        try {
+          bridge!.passThrough.end();
+        } catch {}
         const finalHash = bridge!.hasher.digest('hex');
         transferManager.markCompleted(transferId, finalHash);
-        this.bridges.delete(transferId);
+        // Retain bridge briefly to allow receiver to drain completely before cleanup
+        setTimeout(() => {
+          this.bridges.delete(transferId);
+        }, 5000);
         resolve({
           finalHash,
           bytesTransferred: bridge!.bytesTransferred,
