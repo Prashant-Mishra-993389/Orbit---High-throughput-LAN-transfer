@@ -133,7 +133,7 @@ async function bootstrapApp() {
   });
 
   ipcMain.handle('shell:openDownloads', async () => {
-    const defaultDownloads = path.join(app.getPath('downloads'), 'Orbit');
+    const defaultDownloads = app.getPath('downloads');
     if (!fs.existsSync(defaultDownloads)) {
       fs.mkdirSync(defaultDownloads, { recursive: true });
     }
@@ -159,13 +159,25 @@ async function bootstrapApp() {
   });
 
   // Register native download handler for streaming downloads in Electron
-  // Automatically saves all incoming files directly to the system Downloads/Orbit folder
+  // Automatically saves all incoming files directly to the system Downloads folder (zero subfolders)
   mainWindow.webContents.session.on('will-download', (_event: any, item: any) => {
-    const defaultDownloads = path.join(app.getPath('downloads'), 'Orbit');
+    const defaultDownloads = app.getPath('downloads');
     if (!fs.existsSync(defaultDownloads)) {
       fs.mkdirSync(defaultDownloads, { recursive: true });
     }
-    const saveFilePath = path.join(defaultDownloads, item.getFilename());
+
+    // Auto-resolve collisions in Downloads folder
+    let saveFilePath = path.join(defaultDownloads, item.getFilename());
+    if (fs.existsSync(saveFilePath)) {
+      const ext = path.extname(item.getFilename());
+      const base = path.basename(item.getFilename(), ext);
+      let counter = 1;
+      while (fs.existsSync(path.join(defaultDownloads, `${base} (${counter})${ext}`))) {
+        counter++;
+      }
+      saveFilePath = path.join(defaultDownloads, `${base} (${counter})${ext}`);
+    }
+
     const targetExtractDir = defaultDownloads;
     item.setSavePath(saveFilePath);
 

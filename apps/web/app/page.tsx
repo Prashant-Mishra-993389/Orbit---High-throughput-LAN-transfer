@@ -521,11 +521,21 @@ export default function Home() {
         })
         .catch((err) => {
           console.error('Streaming error:', err);
-          setActiveTransfer((prev) =>
-            prev && prev.transferId === transferId
-              ? { ...prev, status: 'FAILED', error: err.message }
-              : prev
-          );
+          setActiveTransfer((prev) => {
+            if (!prev || prev.transferId !== transferId) return prev;
+            // If all bytes were already sent (100%), do not flip to failed on a post-stream socket close
+            if (prev.percentage >= 99.9 || (file.size > 0 && prev.bytesTransferred >= file.size)) {
+              return {
+                ...prev,
+                status: 'COMPLETED',
+                percentage: 100,
+                bytesTransferred: file.size,
+                currentSpeed: 0,
+                etaSeconds: 0,
+              };
+            }
+            return { ...prev, status: 'FAILED', error: err.message };
+          });
         })
         .finally(() => {
           pendingFileRef.current = null;
@@ -617,6 +627,22 @@ export default function Home() {
           ) {
             setActiveTransfer((prev) => {
               if (!prev || prev.transferId !== activeTransfer.transferId) return prev;
+              // If receiver is already marked COMPLETED or downloaded all bytes, do not overwrite with FAILED
+              if (prev.status === 'COMPLETED' && found.status !== 'COMPLETED') {
+                return prev;
+              }
+              if (
+                found.status === 'FAILED' &&
+                (prev.percentage >= 99.9 || (prev.fileSize > 0 && prev.bytesTransferred >= prev.fileSize))
+              ) {
+                return {
+                  ...prev,
+                  status: 'COMPLETED',
+                  percentage: 100,
+                  currentSpeed: 0,
+                  etaSeconds: 0,
+                };
+              }
               return {
                 ...prev,
                 status: found.status,

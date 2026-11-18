@@ -140,6 +140,19 @@ export class RelayBridgeManager extends EventEmitter {
 
       const onBridgeTerminated = (err?: Error) => {
         if (isSettled) return;
+        if (bridge.session.fileSize > 0 && bridge.session.bytesRelayed >= bridge.session.fileSize) {
+          isSettled = true;
+          bridge.session.status = 'COMPLETED';
+          const finalHash = bridge.hasher.digest('hex');
+          transferManager.markCompleted(bridge.session.transferId, finalHash);
+          this.activeBridges.delete(sessionId);
+          resolve({
+            finalHash,
+            bytesRelayed: bridge.session.bytesRelayed,
+          });
+          return;
+        }
+
         isSettled = true;
         const error = err || new Error('Receiver disconnected or relay cancelled');
         try {
@@ -155,6 +168,19 @@ export class RelayBridgeManager extends EventEmitter {
 
       bridge.passThrough.once('error', onBridgeTerminated);
       bridge.passThrough.once('close', () => {
+        if (isSettled) return;
+        if (bridge.session.fileSize > 0 && bridge.session.bytesRelayed >= bridge.session.fileSize) {
+          isSettled = true;
+          bridge.session.status = 'COMPLETED';
+          const finalHash = bridge.hasher.digest('hex');
+          transferManager.markCompleted(bridge.session.transferId, finalHash);
+          this.activeBridges.delete(sessionId);
+          resolve({
+            finalHash,
+            bytesRelayed: bridge.session.bytesRelayed,
+          });
+          return;
+        }
         if (!inputStream.readableEnded && !isSettled) {
           onBridgeTerminated();
         }
@@ -191,6 +217,13 @@ export class RelayBridgeManager extends EventEmitter {
               onBridgeTerminated();
             }
           });
+        }
+
+        // Cleanly close PassThrough if all bytes have arrived
+        if (bridge.session.fileSize > 0 && bridge.session.bytesRelayed >= bridge.session.fileSize) {
+          try {
+            bridge.passThrough.end();
+          } catch {}
         }
       });
 
@@ -275,6 +308,10 @@ export class RelayBridgeManager extends EventEmitter {
 
     if (reply.raw && typeof reply.raw.on === 'function') {
       reply.raw.on('close', () => {
+        if (bridge.session.fileSize > 0 && bridge.session.bytesRelayed >= bridge.session.fileSize) {
+          // Normal finish - receiver received all bytes
+          return;
+        }
         if (!reply.raw.writableEnded && bridge.passThrough && !bridge.passThrough.destroyed) {
           bridge.passThrough.destroy();
           this.activeBridges.delete(sessionId);
