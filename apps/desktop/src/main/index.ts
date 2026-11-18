@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, shell, powerMonitor, Tray } from 'electron';
+import { app, BrowserWindow, ipcMain, shell, powerMonitor, Tray, dialog } from 'electron';
 import path from 'node:path';
 import os from 'node:os';
 import fs from 'node:fs';
@@ -125,11 +125,32 @@ async function bootstrapApp() {
 
   // Register native download handler for streaming downloads in Electron
   mainWindow.webContents.session.on('will-download', (_event: any, item: any) => {
-    const downloadsPath = path.join(os.homedir(), 'Downloads', 'Orbit');
-    if (!fs.existsSync(downloadsPath)) {
-      fs.mkdirSync(downloadsPath, { recursive: true });
+    const defaultDownloads = path.join(os.homedir(), 'Downloads', 'Orbit');
+    if (!fs.existsSync(defaultDownloads)) {
+      fs.mkdirSync(defaultDownloads, { recursive: true });
     }
-    const saveFilePath = path.join(downloadsPath, item.getFilename());
+    const defaultFilePath = path.join(defaultDownloads, item.getFilename());
+
+    // Prompt user with native OS Save Dialog so they can choose where to save every time!
+    const chosenPath = dialog.showSaveDialogSync(mainWindow!, {
+      title: 'Save Received File',
+      defaultPath: defaultFilePath,
+      properties: ['showOverwriteConfirmation'],
+    });
+
+    if (!chosenPath) {
+      item.cancel();
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('download:failed', {
+          filename: item.getFilename(),
+          state: 'cancelled',
+        });
+      }
+      return;
+    }
+
+    const saveFilePath = chosenPath;
+    const targetExtractDir = path.dirname(chosenPath);
     item.setSavePath(saveFilePath);
 
     let lastBytes = 0;
@@ -171,12 +192,12 @@ async function bootstrapApp() {
         const filename = item.getFilename();
         console.log(`Download completed and saved to: ${saveFilePath}`);
 
-        // Auto-unpack TAR folder bundles directly into real folders on disk
+        // Auto-unpack TAR folder bundles directly into the chosen folder on disk
         if (filename.endsWith('.tar')) {
           try {
-            child_process.execFile('tar', ['-xf', saveFilePath, '-C', downloadsPath], (err) => {
+            child_process.execFile('tar', ['-xf', saveFilePath, '-C', targetExtractDir], (err) => {
               if (!err) {
-                console.log(`Auto-unpacked ${filename} directly into ${downloadsPath}`);
+                console.log(`Auto-unpacked ${filename} directly into ${targetExtractDir}`);
               }
               if (mainWindow && !mainWindow.isDestroyed()) {
                 mainWindow.webContents.send('download:completed', {

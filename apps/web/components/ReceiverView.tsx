@@ -100,39 +100,46 @@ export function ReceiverView({
         </div>
       </div>
 
-      {/* Info card */}
-      <div className="p-3 rounded-lg bg-obsidian-base border border-white/[0.06] text-left text-xs space-y-0.5">
-        <div className="flex items-center space-x-1.5 text-zinc-200 font-medium">
-          <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-          <span>Direct-to-Disk Stream</span>
+      {/* Destination & Info card */}
+      <div className="p-3 rounded-lg bg-obsidian-base border border-white/[0.06] text-left text-xs space-y-1.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-1.5 text-zinc-200 font-medium">
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Direct-to-Disk Stream</span>
+          </div>
+          <span className="text-[10px] font-mono text-zinc-400 bg-white/[0.04] px-1.5 py-0.5 rounded border border-white/[0.06]">
+            {hasSavePicker ? 'Choose Location' : 'Downloads Folder'}
+          </span>
         </div>
         <p className="text-[11px] text-zinc-400 leading-relaxed">
-          The file streams directly to local storage in real time with end-to-end checksum verification.
+          {hasSavePicker
+            ? 'Click "Choose Folder & Save" to select the exact directory on your computer.'
+            : 'Files are saved to your browser\'s default Downloads folder. To pick a folder every time, enable "Ask where to save each file" in your browser settings.'}
         </p>
       </div>
 
       {/* Primary Actions */}
       <div className="space-y-2 pt-1">
-        {hasSavePicker && (
+        {hasSavePicker ? (
           <button
             type="button"
             onClick={handlePickLocationAndAccept}
             disabled={isPickingLocation}
-            className="w-full py-2.5 px-4 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white font-medium text-xs border border-white/[0.1] active:scale-[0.98] transition-all flex items-center justify-center space-x-2"
+            className="w-full py-2.5 px-4 rounded-lg font-medium text-xs bg-white text-zinc-950 hover:bg-zinc-200 active:scale-[0.98] transition-all flex items-center justify-center space-x-2 shadow-sm"
           >
             <FolderDown className="w-3.5 h-3.5" />
-            <span>Choose Folder & Save</span>
+            <span>{isPickingLocation ? 'Selecting location...' : 'Choose Folder & Save'}</span>
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onAccept(offer)}
+            className="w-full py-2.5 px-4 rounded-lg font-medium text-xs bg-white text-zinc-950 hover:bg-zinc-200 active:scale-[0.98] transition-all flex items-center justify-center space-x-2 shadow-sm"
+          >
+            <Download className="w-3.5 h-3.5" />
+            <span>Accept & Save to Downloads</span>
           </button>
         )}
-
-        <button
-          type="button"
-          onClick={() => onAccept(offer)}
-          className="w-full py-2.5 px-4 rounded-lg font-medium text-xs bg-white text-zinc-950 hover:bg-zinc-200 active:scale-[0.98] transition-all flex items-center justify-center space-x-2 shadow-sm"
-        >
-          <Download className="w-3.5 h-3.5" />
-          <span>{hasSavePicker ? 'Save to Downloads' : 'Accept & Save'}</span>
-        </button>
 
         <button
           type="button"
