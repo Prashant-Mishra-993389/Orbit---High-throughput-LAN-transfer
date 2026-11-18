@@ -69,6 +69,13 @@ export async function startServer(options: ServerOptions = {}): Promise<RunningS
       root: webDistPath,
       prefix: '/',
       wildcard: false,
+      setHeaders: (res, pathName) => {
+        if (pathName.endsWith('.html') || pathName === '/') {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+          res.setHeader('Pragma', 'no-cache');
+          res.setHeader('Expires', '0');
+        }
+      },
     });
 
     server.setNotFoundHandler((req, reply) => {
@@ -76,6 +83,7 @@ export async function startServer(options: ServerOptions = {}): Promise<RunningS
       if (url.startsWith('/api')) {
         reply.status(404).send({ error: 'API route not found' });
       } else {
+        reply.header('Cache-Control', 'no-cache, no-store, must-revalidate');
         reply.sendFile('index.html');
       }
     });
