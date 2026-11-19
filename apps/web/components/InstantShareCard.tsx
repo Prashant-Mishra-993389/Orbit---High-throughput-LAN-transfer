@@ -144,11 +144,11 @@ export function InstantShareCard({
         </div>
       )}
 
-      {/* QR Code Presentation (Secondary for Phones) */}
+      {/* Universal Direct Receive Link & QR */}
       <QrCodeCard
         url={directOfferUrl}
-        title="Mobile Phone Link"
-        subtitle="Point phone camera to stream directly into browser"
+        title="Direct Receive Link & QR"
+        subtitle="Open this link or scan QR on any device to stream instantly"
         size={180}
         showCopy={true}
       />

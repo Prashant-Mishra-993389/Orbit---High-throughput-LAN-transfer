@@ -260,24 +260,55 @@ export default function Home() {
     }
   }, [session.clientId, session.clientName, pairedDevice]);
 
-  // Check URL query parameters: If someone scans a QR code with ?offerId=xxx, auto-connect to that offer
+  // Check URL query parameters: If someone scans a QR code or opens a direct link with ?offerId=xxx, land directly on receiving phase
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const requestedOfferId = params.get('offerId');
     if (requestedOfferId && !incomingOffer && !activeTransfer) {
-      fetch(`${getServerBaseUrl()}/api/transfers/offers`)
-        .then((res) => res.json())
-        .then((offers: TransferOffer[]) => {
-          const found = offers.find(
-            (o) => o.transferId === requestedOfferId && o.status === 'OFFERED'
-          );
-          if (found) {
-            setIncomingOffer(found);
-            playOfferChime();
+      let cancelled = false;
+      let attempts = 0;
+
+      const fetchOffer = async () => {
+        if (cancelled) return;
+        try {
+          const directRes = await fetch(`${getServerBaseUrl()}/api/transfers/offers/${requestedOfferId}`);
+          if (directRes.ok) {
+            const offer: TransferOffer = await directRes.json();
+            if (!cancelled && offer && offer.status === 'OFFERED') {
+              setIncomingOffer(offer);
+              playOfferChime();
+              return;
+            }
           }
-        })
-        .catch(() => {});
+        } catch {}
+
+        try {
+          const listRes = await fetch(`${getServerBaseUrl()}/api/transfers/offers`);
+          if (listRes.ok) {
+            const offers: TransferOffer[] = await listRes.json();
+            const found = Array.isArray(offers)
+              ? offers.find((o) => o.transferId === requestedOfferId && o.status === 'OFFERED')
+              : null;
+            if (!cancelled && found) {
+              setIncomingOffer(found);
+              playOfferChime();
+              return;
+            }
+          }
+        } catch {}
+
+        if (!cancelled && attempts < 8) {
+          attempts++;
+          setTimeout(fetchOffer, 500);
+        }
+      };
+
+      fetchOffer();
+
+      return () => {
+        cancelled = true;
+      };
     }
   }, [incomingOffer, activeTransfer]);
 
@@ -348,11 +379,34 @@ export default function Home() {
 
       const targetPeer = explicitTarget || pairedDevice || null;
 
-      // CRITICAL: If no recipient target has been chosen or paired, DO NOT create or broadcast an offer!
-      // Simply stage the file locally on the sender's screen.
-      // ZERO network requests, ZERO WebSocket messages, ZERO popups on any other machine!
+      // If no recipient target has been chosen or paired, create a staged link-claim offer on our local server.
+      // Setting targetDeviceId: 'claim-via-link' ensures ZERO idle machines on the LAN receive a popup!
+      // Only the recipient who explicitly scans the QR code or opens the direct link will claim it.
       if (!targetPeer) {
-        setStagedShare({ file, offer: null });
+        try {
+          const offer = await createTransferOffer({
+            fileName: file.name,
+            fileSize: file.size,
+            mimeType: file.type || 'application/octet-stream',
+            senderClientId: session.clientId,
+            senderDeviceName: session.clientName,
+            targetDeviceId: 'claim-via-link',
+            targetClientId: 'claim-via-link',
+            transportMode: 'DIRECT_LAN',
+          });
+
+          pendingFileRef.current = {
+            file,
+            transferId: offer.transferId,
+            transportMode: 'DIRECT_LAN',
+            relaySessionId: offer.transferId,
+          };
+
+          setStagedShare({ file, offer });
+        } catch (err) {
+          console.error('Failed to create staged transfer offer:', err);
+          setStagedShare({ file, offer: null });
+        }
         return;
       }
 
@@ -998,7 +1052,7 @@ export default function Home() {
           <InstantShareCard
             file={stagedShare.file}
             offer={stagedShare.offer}
-            sharingUrl={activeSharingUrl}
+            sharingUrl={directPairingUrl || activeSharingUrl}
             nearbyDevices={devices}
             pairedDevice={pairedDevice}
             onSendToDevice={(device) => {

@@ -85,6 +85,9 @@ export function useShareLanWebSocket() {
           if (o.senderClientId === currentSession.clientId) return false;
           if (now - o.createdAt > 3 * 60 * 1000) return false;
 
+          // Link-claim offers are strictly claimed via QR code or direct link, NEVER via background polling!
+          if (o.targetDeviceId === 'claim-via-link' || o.targetClientId === 'claim-via-link') return false;
+
           // Must be explicitly targeted to us or to our host server
           const isTargetedToUs =
             (o.targetClientId && o.targetClientId === currentSession.clientId) ||
@@ -163,6 +166,11 @@ export function useShareLanWebSocket() {
               const offer = msg.payload as TransferOffer;
               // 1. SENDER NEVER ACCEPTS THEIR OWN TRANSFER!
               if (offer.senderClientId === currentSession.clientId) {
+                break;
+              }
+
+              // 2. Link-claim offers are strictly claimed via QR code or direct link, NEVER via broadcast popups!
+              if (offer.targetDeviceId === 'claim-via-link' || offer.targetClientId === 'claim-via-link') {
                 break;
               }
 

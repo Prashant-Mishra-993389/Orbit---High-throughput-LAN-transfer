@@ -529,6 +529,16 @@ export const apiRoutes: FastifyPluginAsync = async (server: FastifyInstance) => 
       .sort((a, b) => b.createdAt - a.createdAt);
   });
 
+  // Get specific active offer by ID (used for direct QR/link claims)
+  server.get<{ Params: { id: string } }>('/api/transfers/offers/:id', async (request, reply) => {
+    pruneStaleOffers();
+    const offer = activeOffers.get(request.params.id);
+    if (!offer || offer.status !== 'OFFERED' || Date.now() - offer.createdAt > OFFER_TTL_MS) {
+      return reply.status(404).send({ error: 'Offer not found or expired' });
+    }
+    return offer;
+  });
+
   // Recipient Accepts Transfer Offer
   server.post<{
     Params: { id: string };
