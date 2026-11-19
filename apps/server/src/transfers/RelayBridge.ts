@@ -1,4 +1,4 @@
-import { PassThrough, Readable, Transform } from 'node:stream';
+import { PassThrough, Readable } from 'node:stream';
 import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { FastifyReply } from 'fastify';
@@ -186,39 +186,44 @@ export class RelayBridgeManager extends EventEmitter {
         }
       });
 
-      // Stream pipeline metering: measures bytes, updates SHA-256 hash, and reports real-time progress
-      const meterTransform = new Transform({
-        highWaterMark: 2 * 1024 * 1024,
-        transform(chunk: Buffer, _encoding, callback) {
-          if (isSettled) {
-            callback();
-            return;
-          }
-          bridge.session.bytesRelayed += chunk.length;
-          bridge.hasher.update(chunk);
-          bridge.lastActivity = Date.now();
+      inputStream.on('data', (chunk: Buffer) => {
+        if (isSettled || bridge.passThrough.destroyed) {
+          onBridgeTerminated();
+          return;
+        }
 
-          // Update centralized TransferManager so WebSocket clients get synchronized live progress
-          transferManager.recordStreamBytes(bridge.session.transferId, bridge.session.bytesRelayed);
+        bridge.session.bytesRelayed += chunk.length;
+        bridge.hasher.update(chunk);
+        bridge.lastActivity = Date.now();
 
-          callback(null, chunk);
-        },
-      });
+        // Update centralized TransferManager so WebSocket clients get synchronized live progress
+        transferManager.recordStreamBytes(bridge.session.transferId, bridge.session.bytesRelayed);
 
-      meterTransform.on('error', (err) => {
-        if (isSettled) return;
-        isSettled = true;
-        bridge.passThrough.destroy();
-        this.activeBridges.delete(sessionId);
-        reject(err);
+        this.emit('progress', {
+          sessionId,
+          transferId: bridge.session.transferId,
+          bytesRelayed: bridge.session.bytesRelayed,
+          totalBytes: bridge.session.fileSize,
+        });
+
+        // Push directly to receiver via bounded PassThrough with backpressure
+        const canContinue = bridge.passThrough.write(chunk);
+        if (!canContinue) {
+          inputStream.pause();
+          bridge.passThrough.once('drain', () => {
+            if (!bridge.passThrough.destroyed && !isSettled) {
+              inputStream.resume();
+            } else {
+              onBridgeTerminated();
+            }
+          });
+        }
       });
 
       inputStream.on('end', () => {
         if (isSettled) return;
         isSettled = true;
-        try {
-          bridge.passThrough.end();
-        } catch {}
+        bridge.passThrough.end();
         bridge.session.status = 'COMPLETED';
         const finalHash = bridge.hasher.digest('hex');
 
@@ -234,7 +239,7 @@ export class RelayBridgeManager extends EventEmitter {
         // Keep session metadata briefly then cleanup
         setTimeout(() => {
           this.activeBridges.delete(sessionId);
-        }, 8000);
+        }, 5000);
 
         resolve({
           bytesRelayed: bridge.session.bytesRelayed,
@@ -243,20 +248,7 @@ export class RelayBridgeManager extends EventEmitter {
       });
 
       inputStream.on('close', () => {
-        if (isSettled) return;
-        if (bridge.session.fileSize > 0 && bridge.session.bytesRelayed >= bridge.session.fileSize) {
-          isSettled = true;
-          bridge.session.status = 'COMPLETED';
-          const finalHash = bridge.hasher.digest('hex');
-          transferManager.markCompleted(bridge.session.transferId, finalHash);
-          this.activeBridges.delete(sessionId);
-          resolve({
-            bytesRelayed: bridge.session.bytesRelayed,
-            finalHash,
-          });
-          return;
-        }
-        if (!inputStream.readableEnded && bridge.passThrough && !bridge.passThrough.destroyed) {
+        if (!inputStream.readableEnded && bridge.passThrough && !bridge.passThrough.destroyed && !isSettled) {
           isSettled = true;
           bridge.session.status = 'FAILED';
           bridge.passThrough.destroy();
@@ -268,18 +260,6 @@ export class RelayBridgeManager extends EventEmitter {
 
       inputStream.on('error', (err) => {
         if (isSettled) return;
-        if (bridge.session.fileSize > 0 && bridge.session.bytesRelayed >= bridge.session.fileSize) {
-          isSettled = true;
-          bridge.session.status = 'COMPLETED';
-          const finalHash = bridge.hasher.digest('hex');
-          transferManager.markCompleted(bridge.session.transferId, finalHash);
-          this.activeBridges.delete(sessionId);
-          resolve({
-            bytesRelayed: bridge.session.bytesRelayed,
-            finalHash,
-          });
-          return;
-        }
         isSettled = true;
         bridge.session.status = 'FAILED';
         bridge.passThrough.destroy();
@@ -287,9 +267,6 @@ export class RelayBridgeManager extends EventEmitter {
         this.activeBridges.delete(sessionId);
         reject(err);
       });
-
-      // Standard Node.js pipe handles backpressure automatically
-      inputStream.pipe(meterTransform).pipe(bridge.passThrough, { end: false });
     });
   }
 

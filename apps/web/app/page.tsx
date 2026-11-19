@@ -24,7 +24,6 @@ import {
   rejectTransferOffer,
   cancelTransfer,
   triggerBrowserStreamDownload,
-  streamDirectToFileHandle,
   getServerBaseUrl,
   joinPairingSession,
   autoConnectPairing,
@@ -703,25 +702,11 @@ export default function Home() {
         streamUrl = `${targetHost}/api/transfers/${offer.transferId}/live-pipe?filename=${encodedName}`;
       }
 
-      const isElectron = typeof window !== 'undefined' && Boolean((window as any).electronAPI);
-      let fileHandle: any = null;
-
-      // In desktop browsers supporting File System Access API (Chrome/Brave/Edge), prompt destination
-      // up-front so data streams directly into disk without browser buffer limits or mid-stream hangs.
-      if (!isElectron && typeof window !== 'undefined' && 'showSaveFilePicker' in window) {
-        try {
-          fileHandle = await (window as any).showSaveFilePicker({
-            suggestedName: offer.fileName,
-          });
-        } catch (err: any) {
-          if (err.name === 'AbortError') {
-            // User cancelled destination picker - cleanly cancel offer
-            await rejectTransferOffer(offer.transferId, 'User cancelled save dialog', senderHost);
-            setIncomingOffer(null);
-            return;
-          }
-        }
-      }
+      // CRITICAL FOR CHROME: Trigger the browser stream download SYNCHRONOUSLY inside the user click handler!
+      // If we wait for acceptTransferOffer() async network round-trip, Chrome's transient user activation token expires,
+      // which causes Chrome to treat the download as an unprompted/untrusted download and triggers the "Save As" file location dialog!
+      // Triggering synchronously preserves the user gesture token so Chrome automatically saves straight into default Downloads!
+      triggerBrowserStreamDownload(streamUrl, offer.fileName);
 
       setActiveTransfer({
         transferId: offer.transferId,
@@ -739,46 +724,6 @@ export default function Home() {
       });
 
       setIncomingOffer(null);
-
-      // Start the download stream
-      if (fileHandle) {
-        // Stream directly into user-selected file handle on disk
-        streamDirectToFileHandle(streamUrl, fileHandle, (loaded) => {
-          setActiveTransfer((prev) =>
-            prev && prev.transferId === offer.transferId
-              ? {
-                  ...prev,
-                  bytesTransferred: loaded,
-                  percentage: offer.fileSize > 0 ? (loaded / offer.fileSize) * 100 : 0,
-                }
-              : prev
-          );
-        })
-          .then(() => {
-            setActiveTransfer((prev) =>
-              prev && prev.transferId === offer.transferId
-                ? {
-                    ...prev,
-                    status: 'COMPLETED',
-                    percentage: 100,
-                    bytesTransferred: offer.fileSize,
-                  }
-                : prev
-            );
-          })
-          .catch((err) => {
-            console.error('Direct file handle stream error:', err);
-            setActiveTransfer((prev) =>
-              prev && prev.transferId === offer.transferId
-                ? { ...prev, status: 'FAILED', error: err.message }
-                : prev
-            );
-          });
-      } else {
-        // In Electron: auto-saves to Downloads folder.
-        // In mobile/Firefox: standard native download engine.
-        triggerBrowserStreamDownload(streamUrl, offer.fileName);
-      }
 
       await acceptTransferOffer(
         offer.transferId,
