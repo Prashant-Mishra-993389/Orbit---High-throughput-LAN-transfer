@@ -231,19 +231,16 @@ export async function getTransferOffset(transferId: string): Promise<number> {
  * The bytes are piped in real time to the receiver as they arrive.
  * ZERO duplicate file is created on the sender machine.
  */
-export function streamFileToBridge(
-  transferId: string,
+function uploadViaXhr(
+  url: string,
   file: File,
   onProgress?: (bytesUploaded: number, totalBytes: number) => void
-): Promise<{ success: boolean; finalHash: string }> {
+): Promise<any> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    const url = `${getServerBaseUrl()}/api/transfers/${transferId}/live-pipe`;
-
     xhr.open('PUT', url, true);
-    xhr.timeout = 0; // Disable client timeout for multi-GB transfers
+    xhr.timeout = 0;
     xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
-
     if (onProgress && xhr.upload) {
       xhr.upload.onprogress = (event) => {
         if (event.lengthComputable) {
@@ -251,26 +248,75 @@ export function streamFileToBridge(
         }
       };
     }
-
     xhr.onload = () => {
       if (xhr.status >= 200 && xhr.status < 300) {
         try {
-          const data = JSON.parse(xhr.responseText);
-          resolve(data);
+          resolve(JSON.parse(xhr.responseText));
         } catch {
           resolve({ success: true, finalHash: '' });
         }
       } else {
-        reject(new Error(`Live stream failed with HTTP ${xhr.status}`));
+        reject(new Error(`Stream failed with HTTP ${xhr.status}`));
       }
     };
-
     xhr.onerror = () => reject(new Error('Network connection interrupted during live streaming'));
     xhr.onabort = () => reject(new Error('Transfer aborted'));
-
-    // Streams file directly from disk with native backpressure
     xhr.send(file);
   });
+}
+
+/**
+ * Sender streams live file bytes directly into the in-memory stream bridge.
+ * The bytes are piped in real time to the receiver as they arrive.
+ * ZERO duplicate file is created on the sender machine.
+ */
+export async function streamFileToBridge(
+  transferId: string,
+  file: File,
+  onProgress?: (bytesUploaded: number, totalBytes: number) => void
+): Promise<{ success: boolean; finalHash: string }> {
+  const url = `${getServerBaseUrl()}/api/transfers/${transferId}/live-pipe`;
+
+  // Modern browsers (Chromium 105+): stream via fetch with duplex: 'half'
+  // Eliminates Blink renderer IPC buffer overflow on multi-GB files
+  if (typeof file.stream === 'function' && typeof TransformStream !== 'undefined') {
+    try {
+      let uploaded = 0;
+      const progressTransform = new TransformStream({
+        transform(chunk, controller) {
+          uploaded += chunk.byteLength;
+          if (onProgress) {
+            onProgress(uploaded, file.size);
+          }
+          controller.enqueue(chunk);
+        },
+      });
+
+      const bodyStream = file.stream().pipeThrough(progressTransform);
+
+      const res = await fetch(url, {
+        method: 'PUT',
+        body: bodyStream,
+        // @ts-ignore
+        duplex: 'half',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+          'Content-Length': file.size.toString(),
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Live stream failed with HTTP ${res.status}`);
+      }
+
+      return await res.json().catch(() => ({ success: true, finalHash: '' }));
+    } catch (err: any) {
+      console.warn('Fetch request streaming failed, falling back to XHR stream:', err);
+      return uploadViaXhr(url, file, onProgress);
+    }
+  }
+
+  return uploadViaXhr(url, file, onProgress);
 }
 
 /**
@@ -345,47 +391,54 @@ export async function pushFileToPeer(
 
 /**
  * Zero-Disk Relay Stream: Sender streams directly into relay memory buffer.
- * Relayed immediately to recipient with bounded 64KB backpressure.
+ * Relayed immediately to recipient with bounded backpressure.
  * ZERO bytes stored on relay server disk!
  */
-export function streamFileToRelay(
+export async function streamFileToRelay(
   sessionId: string,
   file: File,
   onProgress?: (bytesUploaded: number, totalBytes: number) => void
 ): Promise<{ success: boolean; finalHash: string; bytesRelayed: number }> {
-  return new Promise((resolve, reject) => {
-    const xhr = new XMLHttpRequest();
-    const url = `${getServerBaseUrl()}/api/relay/${sessionId}/stream`;
+  const url = `${getServerBaseUrl()}/api/relay/${sessionId}/stream`;
 
-    xhr.open('PUT', url, true);
-    xhr.timeout = 0; // Disable client timeout for multi-GB transfers
-    xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream');
+  if (typeof file.stream === 'function' && typeof TransformStream !== 'undefined') {
+    try {
+      let uploaded = 0;
+      const progressTransform = new TransformStream({
+        transform(chunk, controller) {
+          uploaded += chunk.byteLength;
+          if (onProgress) {
+            onProgress(uploaded, file.size);
+          }
+          controller.enqueue(chunk);
+        },
+      });
 
-    if (onProgress && xhr.upload) {
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          onProgress(event.loaded, event.total);
-        }
-      };
-    }
+      const bodyStream = file.stream().pipeThrough(progressTransform);
 
-    xhr.onload = () => {
-      if (xhr.status >= 200 && xhr.status < 300) {
-        try {
-          resolve(JSON.parse(xhr.responseText));
-        } catch {
-          resolve({ success: true, finalHash: '', bytesRelayed: file.size });
-        }
-      } else {
-        reject(new Error(`Relay stream failed with HTTP ${xhr.status}`));
+      const res = await fetch(url, {
+        method: 'PUT',
+        body: bodyStream,
+        // @ts-ignore
+        duplex: 'half',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+          'Content-Length': file.size.toString(),
+        },
+      });
+
+      if (!res.ok) {
+        throw new Error(`Relay stream failed with HTTP ${res.status}`);
       }
-    };
 
-    xhr.onerror = () => reject(new Error('Relay stream network connection interrupted'));
-    xhr.onabort = () => reject(new Error('Relay transfer aborted'));
+      return await res.json().catch(() => ({ success: true, finalHash: '', bytesRelayed: file.size }));
+    } catch (err: any) {
+      console.warn('Fetch relay streaming failed, falling back to XHR relay:', err);
+      return uploadViaXhr(url, file, onProgress);
+    }
+  }
 
-    xhr.send(file);
-  });
+  return uploadViaXhr(url, file, onProgress);
 }
 
 /**

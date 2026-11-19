@@ -1,4 +1,4 @@
-import { PassThrough, Readable } from 'node:stream';
+import { PassThrough, Readable, Transform } from 'node:stream';
 import crypto from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { FastifyReply } from 'fastify';
@@ -30,7 +30,7 @@ export class StreamBridgeManager extends EventEmitter {
     mimeType?: string;
   }): ActiveBridge {
     const passThrough = new PassThrough({
-      highWaterMark: 1024 * 1024, // 1 MiB buffer for high-throughput LAN streaming with backpressure
+      highWaterMark: 2 * 1024 * 1024, // 2 MiB buffer for high-throughput LAN streaming with backpressure
     });
 
     // Guard against unhandled 'error' events
@@ -180,30 +180,27 @@ export class StreamBridgeManager extends EventEmitter {
         }
       });
 
-      inputStream.on('data', (chunk: Buffer) => {
-        if (isSettled || bridge!.passThrough.destroyed) {
-          onBridgeTerminated();
-          return;
-        }
+      // Stream pipeline metering: measures bytes, updates SHA-256 hash, and reports real-time progress
+      const meterTransform = new Transform({
+        highWaterMark: 2 * 1024 * 1024,
+        transform(chunk: Buffer, _encoding, callback) {
+          if (isSettled) {
+            callback();
+            return;
+          }
+          bridge!.bytesTransferred += chunk.length;
+          bridge!.hasher.update(chunk);
+          transferManager.recordStreamBytes(transferId, bridge!.bytesTransferred);
+          callback(null, chunk);
+        },
+      });
 
-        bridge!.bytesTransferred += chunk.length;
-        bridge!.hasher.update(chunk);
-
-        // Update progress in control plane
-        transferManager.recordStreamBytes(transferId, bridge!.bytesTransferred);
-
-        // Push directly to receiver via PassThrough with backpressure
-        const canContinue = bridge!.passThrough.write(chunk);
-        if (!canContinue) {
-          inputStream.pause();
-          bridge!.passThrough.once('drain', () => {
-            if (!bridge!.passThrough.destroyed && !isSettled) {
-              inputStream.resume();
-            } else {
-              onBridgeTerminated();
-            }
-          });
-        }
+      meterTransform.on('error', (err) => {
+        if (isSettled) return;
+        isSettled = true;
+        bridge!.passThrough.destroy();
+        this.bridges.delete(transferId);
+        reject(err);
       });
 
       inputStream.on('end', () => {
@@ -217,7 +214,7 @@ export class StreamBridgeManager extends EventEmitter {
         // Retain bridge briefly to allow receiver to drain completely before cleanup
         setTimeout(() => {
           this.bridges.delete(transferId);
-        }, 5000);
+        }, 8000);
         resolve({
           finalHash,
           bytesTransferred: bridge!.bytesTransferred,
@@ -265,6 +262,9 @@ export class StreamBridgeManager extends EventEmitter {
         this.bridges.delete(transferId);
         reject(err);
       });
+
+      // Standard Node.js pipe handles backpressure automatically across OS buffers
+      inputStream.pipe(meterTransform).pipe(bridge!.passThrough, { end: false });
     });
   }
 
@@ -294,7 +294,7 @@ export class StreamBridgeManager extends EventEmitter {
     );
     reply.header('X-Content-Type-Options', 'nosniff');
 
-    // Track receiver disconnection mid-stream
+    // Track receiver disconnection mid-stream with a grace period
     if (reply.raw && typeof reply.raw.on === 'function') {
       reply.raw.on('close', () => {
         const session = transferManager.getSession(transferId);
@@ -316,12 +316,27 @@ export class StreamBridgeManager extends EventEmitter {
         ) {
           return;
         }
-        if (!reply.raw.writableEnded && bridge?.passThrough && !bridge.passThrough.destroyed) {
-          console.warn(`Receiver closed connection early for transfer ${transferId}`);
-          bridge.passThrough.destroy();
-          transferManager.markFailed(transferId, 'Receiver disconnected');
-          this.bridges.delete(transferId);
+        if (reply.raw.writableEnded) {
+          return;
         }
+
+        // Give a 5-second grace period before destroying stream in case receiver is temporarily buffering or reconnecting
+        setTimeout(() => {
+          const current = transferManager.getSession(transferId);
+          if (
+            current &&
+            current.status !== 'COMPLETED' &&
+            current.status !== 'FAILED' &&
+            current.bytesTransferred < current.fileSize
+          ) {
+            if (bridge?.passThrough && !bridge.passThrough.destroyed) {
+              console.warn(`Receiver closed connection early for transfer ${transferId}`);
+              bridge.passThrough.destroy();
+              transferManager.markFailed(transferId, 'Receiver disconnected');
+              this.bridges.delete(transferId);
+            }
+          }
+        }, 5000);
       });
     }
 
